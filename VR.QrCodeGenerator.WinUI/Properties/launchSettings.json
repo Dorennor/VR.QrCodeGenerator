@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VR.QrCodeGenerator.WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "VR.QrCodeGenerator.WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -1,3 +1,9 @@
 <Solution>
-  <Project Path="VR.QrCodeGenerator/VR.QrCodeGenerator.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Project Path="VR.QrCodeGenerator.WinUI/VR.QrCodeGenerator.WinUI.csproj" Id="a23bb76d-d134-490c-a54c-41c096c5bcf4">
+    <Platform Project="x64" />
+    <Deploy />
+  </Project>
 </Solution>
