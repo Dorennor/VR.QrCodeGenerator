@@ -17,10 +17,9 @@ namespace VR.QrCodeGenerator.WPF.Helpers
             }
             else
             {
-                string exeLocation = Environment.ProcessPath;
-                string exeDirectory = Path.GetDirectoryName(exeLocation);
+                string currentDirectory = Directory.GetCurrentDirectory();
 
-                outputPath = Path.Combine(exeDirectory, "Output");
+                outputPath = Path.Combine(currentDirectory, "Output");
 
                 if (!Directory.Exists(outputPath))
                     Directory.CreateDirectory(outputPath);
