@@ -37,6 +37,27 @@ namespace VR.QrCodeGenerator.WPF
             FileFormatOptionsComboBox.SelectedIndex = 0;
         }
 
+        private void TitleBar_OnMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == System.Windows.Input.MouseButton.Left)
+                this.DragMove();
+        }
+
+        private void MinimizeButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
+        }
+
+        private void MaxRestoreButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = this.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        }
+
+        private void CloseButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
         private void GenerateQrCodeButton_OnClick(object sender, RoutedEventArgs eventArgs)
         {
             bool isUriMode = ContentOptionsComboBox.SelectedItem is EnumContentType uri && uri == EnumContentType.Uri;
