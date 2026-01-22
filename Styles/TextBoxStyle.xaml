@@ -1,0 +1,22 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+            <StaticResource x:Key="SystemControlHighlightAccentBrush" ResourceKey="VsAccessAccentBrush" />
+            <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="#5D5691" />
+            <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#5D5691" />
+
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#5D5691" />
+            <SolidColorBrush x:Key="TextControlBoxFocusVisualBrush" Color="#5D5691" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+
+    <Style TargetType="TextBox">
+        <Setter Property="BorderBrush" Value="{StaticResource VsAccessAccentBrush}" />
+        <Setter Property="Padding" Value="3" />
+    </Style>
+
+</ResourceDictionary>

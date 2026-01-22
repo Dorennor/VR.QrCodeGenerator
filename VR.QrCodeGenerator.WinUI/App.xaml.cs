@@ -13,6 +13,11 @@ namespace VR.QrCodeGenerator.WinUI
         private Window _window;
         private readonly Settings _settings;
 
+        static App()
+        {
+            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "en-US";
+        }
+
         public App()
         {
             var configuration = new ConfigurationBuilder()
