@@ -6,4 +6,5 @@
     <Platform Project="x64" />
     <Deploy />
   </Project>
+  <Project Path="VR.QrCodeGenerator.WPF/VR.QrCodeGenerator.WPF.csproj" Id="e6c7a090-f341-46b3-ae7b-f4401f6f86a5" />
 </Solution>
