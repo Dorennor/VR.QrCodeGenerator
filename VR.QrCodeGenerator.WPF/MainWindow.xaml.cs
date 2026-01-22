@@ -1,6 +1,6 @@
-﻿using System.Windows;
+﻿using System.Globalization;
+using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 
 using QRCoder;
 
@@ -10,25 +10,34 @@ using VR.QrCodeGenerator.WPF.Models;
 using VR.QrCodeGenerator.WPF.Models.Settings;
 using VR.QrCodeGenerator.WPF.Services;
 
+using Wpf.Ui.Controls;
+
 namespace VR.QrCodeGenerator.WPF
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : FluentWindow
     {
-        private readonly QrCodeOptions _options;
         private byte[] _qrCode;
         private string _qrCodePath;
 
         public MainWindow(Settings settings)
         {
+            // 1. Force English Language for Color Picker Text
+            var culture = new CultureInfo("en-US");
+            Thread.CurrentThread.CurrentCulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
+
             InitializeComponent();
 
-            UrlTextBox.Text = string.Empty;
+            LoggingService.Initialize(settings);
 
+            // 2. Force Dark Theme
+            //Wpf.Ui.Appearance.ApplicationThemeManager.Apply(Wpf.Ui.Appearance.ApplicationTheme.Dark);
+
+            // 3. Initialize UI State
+            UrlTextBox.Text = string.Empty;
             GenerateQrCodeButton.IsEnabled = false;
             CopyToClipboardButton.IsEnabled = false;
             ResetQrCodeButton.IsEnabled = false;
-
-            _options = new QrCodeOptions();
 
             ContentOptionsComboBox.ItemsSource = Enum.GetValues(typeof(EnumContentType));
             ContentOptionsComboBox.SelectedIndex = 0;
@@ -39,8 +48,8 @@ namespace VR.QrCodeGenerator.WPF
 
         private void GenerateQrCodeButton_OnClick(object sender, RoutedEventArgs eventArgs)
         {
-            bool isUriMode = ContentOptionsComboBox.SelectedItem is EnumContentType uri && uri == EnumContentType.Uri;
-            bool isTextMode = ContentOptionsComboBox.SelectedItem is EnumContentType text && text == EnumContentType.Text;
+            bool isUriMode = ContentOptionsComboBox.SelectedItem is EnumContentType.Uri;
+            bool isTextMode = ContentOptionsComboBox.SelectedItem is EnumContentType.Text;
 
             if ((isUriMode && UriHelper.IsValidUrl(UrlTextBox.Text)) || isTextMode)
             {
@@ -51,6 +60,7 @@ namespace VR.QrCodeGenerator.WPF
                         PixelsPerModule = (int)PixelSizeSlider.Value
                     };
 
+                    // Map ECC
                     if (EccComboBox.SelectedItem is ComboBoxItem { Tag: string eccTag })
                     {
                         options.EccLevel = eccTag switch
@@ -62,31 +72,34 @@ namespace VR.QrCodeGenerator.WPF
                         };
                     }
 
-                    if (FgColorButton.Background is SolidColorBrush fg)
-                        options.ForegroundColor = [fg.Color.R, fg.Color.G, fg.Color.B];
+                    // Map Colors (Directly from Picker)
+                    if (FgColorPicker.SelectedColor.HasValue)
+                    {
+                        var c = FgColorPicker.SelectedColor.Value;
+                        options.ForegroundColor = new byte[] { c.R, c.G, c.B };
+                    }
+                    else
+                    {
+                        options.ForegroundColor = new byte[] { 0, 0, 0 }; // Default Black
+                    }
 
-                    if (BgColorButton.Background is SolidColorBrush bg)
-                        options.BackgroundColor = [bg.Color.R, bg.Color.G, bg.Color.B];
+                    if (BgColorPicker.SelectedColor.HasValue)
+                    {
+                        var c = BgColorPicker.SelectedColor.Value;
+                        options.BackgroundColor = new byte[] { c.R, c.G, c.B };
+                    }
+                    else
+                    {
+                        options.BackgroundColor = new byte[] { 255, 255, 255 }; // Default White
+                    }
 
+                    // Generate
                     _qrCode = QrCodeHelper.GenerateAndSaveQr(UrlTextBox.Text, options);
-                }
-                catch (Exception ex)
-                {
-                    DialogService.ShowErrorMessageBox("Error during qr code generation process.");
-                    return;
-                }
 
-                try
-                {
+                    // Display
                     ImageHelper.DisplayImageFromBytes(_qrCode, QrCodeImage);
-                }
-                catch (Exception ex)
-                {
-                    DialogService.ShowErrorMessageBox("Error during displaying qr code process");
-                }
 
-                try
-                {
+                    // Save
                     _qrCodePath = OutputHelper.SaveToFile(_qrCode, imageFormat: (EnumImageFormat)FileFormatOptionsComboBox.SelectedItem);
 
                     CopyToClipboardButton.IsEnabled = true;
@@ -94,7 +107,7 @@ namespace VR.QrCodeGenerator.WPF
                 }
                 catch (Exception ex)
                 {
-                    DialogService.ShowErrorMessageBox("Error during saving qr code process");
+                    DialogService.ShowWarnMessageBox($"Error: {ex.Message}");
                 }
             }
             else
@@ -103,74 +116,30 @@ namespace VR.QrCodeGenerator.WPF
             }
         }
 
-        private void FgColorButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            //var dlg = new System.Windows.Forms.ColorDialog();
-
-            //if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            //{
-            //    var c = System.Drawing.Color.FromArgb(dlg.Color.ToArgb());
-            //    FgColorButton.Background = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B));
-            //}
-        }
-
-        private void BgColorButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            //var dlg = new System.Windows.Forms.ColorDialog();
-
-            //if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            //{
-            //    var c = System.Drawing.Color.FromArgb(dlg.Color.ToArgb());
-            //    BgColorButton.Background = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B));
-            //}
-        }
-
         private void UrlTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
         {
-            if (string.IsNullOrEmpty(UrlTextBox.Text))
+            bool hasText = !string.IsNullOrEmpty(UrlTextBox.Text);
+            GenerateQrCodeButton.IsEnabled = hasText;
+
+            if (!hasText)
             {
-                GenerateQrCodeButton.IsEnabled = false;
                 CopyToClipboardButton.IsEnabled = false;
                 ResetQrCodeButton.IsEnabled = false;
-            }
-            else
-            {
-                GenerateQrCodeButton.IsEnabled = true;
             }
         }
 
         private void CopyToClipboardButton_OnClick(object sender, RoutedEventArgs eventArgs)
         {
-            OutputHelper.CopyQrToClipboard(_qrCodePath);
+            if (_qrCode != null) OutputHelper.CopyQrToClipboard(_qrCodePath);
         }
 
         private void ResetQrCodeButton_OnClick(object sender, RoutedEventArgs eventArgs)
         {
+            UrlTextBox.Text = string.Empty;
             QrCodeImage.Source = null;
+            _qrCode = null;
             CopyToClipboardButton.IsEnabled = false;
             ResetQrCodeButton.IsEnabled = false;
-        }
-
-        private void FgColorPicker_OnSelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> eventArgs)
-        {
-            if (eventArgs.NewValue.HasValue)
-                FgColorButton.Background = new SolidColorBrush(eventArgs.NewValue.Value);
-        }
-
-        private void FgColorPickerClose_OnClick(object sender, RoutedEventArgs e)
-        {
-            FgColorButton.IsChecked = false;
-        }
-
-        private void BgColorPicker_OnSelectedColorChangedColorPicker_OnSelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> eventArgs)
-        {
-            if (eventArgs.NewValue.HasValue)
-                BgColorButton.Background = new SolidColorBrush(eventArgs.NewValue.Value);
-        }
-
-        private void BgColorPickerClose_OnClick(object sender, RoutedEventArgs e)
-        {
-            BgColorButton.IsChecked = false;
         }
     }
 }
