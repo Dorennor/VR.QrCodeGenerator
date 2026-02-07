@@ -39,8 +39,8 @@ namespace VR.QrCodeGenerator.WPF
 
         private void GenerateQrCodeButton_OnClick(object sender, RoutedEventArgs eventArgs)
         {
-            bool isUriMode = ContentOptionsComboBox.SelectedItem is EnumContentType uri && uri == EnumContentType.Uri;
-            bool isTextMode = ContentOptionsComboBox.SelectedItem is EnumContentType text && text == EnumContentType.Text;
+            bool isUriMode = ContentOptionsComboBox.SelectedItem is EnumContentType and EnumContentType.Uri;
+            bool isTextMode = ContentOptionsComboBox.SelectedItem is EnumContentType and EnumContentType.Text;
 
             if ((isUriMode && UriHelper.IsValidUrl(UrlTextBox.Text)) || isTextMode)
             {
