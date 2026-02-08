@@ -1,5 +1,7 @@
 ﻿using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Xml.Linq;
 
@@ -19,6 +21,7 @@ namespace VR.QrCodeGenerator.Service.Helpers
             else
             {
                 outputPath = Path.Combine(Directory.GetCurrentDirectory(), "Output");
+
                 if (!Directory.Exists(outputPath))
                     Directory.CreateDirectory(outputPath);
             }
@@ -57,10 +60,10 @@ namespace VR.QrCodeGenerator.Service.Helpers
 
         public static void CopyQrToClipboard(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath))
+            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
                 return;
 
-            BitmapImage bitmap = new BitmapImage();
+            var bitmap = new BitmapImage();
 
             bitmap.BeginInit();
 
@@ -69,8 +72,26 @@ namespace VR.QrCodeGenerator.Service.Helpers
 
             bitmap.EndInit();
 
-            Clipboard.SetImage(bitmap);
-            Clipboard.Flush();
+            if (bitmap.IsDownloading)
+                return;
+
+            var convertedBitmap = new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0);
+
+            for (int i = 0; i < 3; i++)
+            {
+                try
+                {
+                    Clipboard.SetImage(convertedBitmap);
+                    return;
+                }
+                catch (COMException)
+                {
+                    if (i == 2)
+                        throw;
+
+                    Thread.Sleep(50);
+                }
+            }
         }
 
         private static string ConvertImageType(EnumImageFormat imageFormat)

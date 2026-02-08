@@ -1,4 +1,6 @@
-﻿using System.Windows.Media;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Windows.Media;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -123,6 +125,23 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         public void CopyToClipboard()
         {
             OutputHelper.CopyQrToClipboard(_qrCodePath);
+        }
+
+        [RelayCommand]
+        public void SaveQrCode()
+        {
+            _qrCodePath = OutputHelper.SaveToFile(QrCode, imageFormat: SelectedImageFormat);
+        }
+
+        [RelayCommand]
+        public void OpenOutputFolder()
+        {
+            var outputPath = Path.Combine(Directory.GetCurrentDirectory(), "Output");
+
+            if (!Directory.Exists(outputPath))
+                Directory.CreateDirectory(outputPath);
+
+            Process.Start("explorer.exe", outputPath);
         }
     }
 }

@@ -1,7 +1,5 @@
-﻿using System.Text.RegularExpressions;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 
 using VR.QrCodeGenerator.Model.Enums;
@@ -27,6 +25,7 @@ namespace VR.QrCodeGenerator.WPF
             GenerateQrCodeButton.IsEnabled = false;
             CopyToClipboardButton.IsEnabled = false;
             ResetQrCodeButton.IsEnabled = false;
+            SaveQrCode.IsEnabled = false;
 
             ContentOptionsComboBox.ItemsSource = Enum.GetValues<EnumContentType>();
             ContentOptionsComboBox.SelectedIndex = 0;
@@ -69,6 +68,7 @@ namespace VR.QrCodeGenerator.WPF
             QrCodeImage.Source = null;
             CopyToClipboardButton.IsEnabled = false;
             ResetQrCodeButton.IsEnabled = false;
+            SaveQrCode.IsEnabled = false;
         }
 
         private void FgColorPicker_OnSelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> eventArgs)
@@ -93,10 +93,9 @@ namespace VR.QrCodeGenerator.WPF
             BgColorButton.IsChecked = false;
         }
 
-        private void NumberValidationTextBox(object sender, TextCompositionEventArgs eventArgs)
+        private void GenerateQrCodeButton_OnClick(object sender, RoutedEventArgs e)
         {
-            Regex regex = new Regex("[^0-9]+");
-            eventArgs.Handled = regex.IsMatch(eventArgs.Text);
+            SaveQrCode.IsEnabled = true;
         }
     }
 }

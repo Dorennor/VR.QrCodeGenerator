@@ -40,9 +40,33 @@
 
             <Border Grid.Row="0" Grid.Column="1" BorderBrush="Gray" BorderThickness="1">
                 <StackPanel Orientation="Horizontal">
-                    <Button Name="GenerateQrCodeButton" Margin="10,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding GenerateQrCodeCommand}" Content="Generate QR code" FontSize="14" />
-                    <Button Name="CopyToClipboardButton" Margin="5,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding CopyToClipboardCommand}" Content="Copy QR code to clipboard" FontSize="14" />
-                    <Button Name="ResetQrCodeButton" Margin="5,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Click="ResetQrCodeButton_OnClick" Content="Reset QR code" FontSize="14" />
+                    <Button Name="GenerateQrCodeButton"
+                            Margin="10,10,5,10"
+                            Padding="5"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Command="{Binding GenerateQrCodeCommand}"
+                            Click="GenerateQrCodeButton_OnClick"
+                            Content="Generate QR code"
+                            FontSize="14" />
+
+                    <Button Name="CopyToClipboardButton"
+                            Margin="5,10,5,10"
+                            Padding="5"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Command="{Binding CopyToClipboardCommand}"
+                            Content="Copy QR code to clipboard"
+                            FontSize="14" />
+
+                    <Button Name="ResetQrCodeButton"
+                            Margin="5,10,5,10"
+                            Padding="5"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Click="ResetQrCodeButton_OnClick"
+                            Content="Reset QR code"
+                            FontSize="14" />
                 </StackPanel>
             </Border>
 
@@ -212,6 +236,27 @@
                                 <ComboBox Name="FileFormatOptionsComboBox"
                                           HorizontalAlignment="Stretch"
                                           SelectedItem="{Binding SelectedImageFormat}" />
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0"
+                                            Name="SaveQrCode"
+                                            Padding="5"
+                                            Content="Save QR code"
+                                            FontSize="14"
+                                            Command="{Binding SaveQrCodeCommand}" />
+
+                                    <Button Grid.Column="2"
+                                            Name="OpenOutputFolderButton"
+                                            Padding="5"
+                                            Content="Open output folder"
+                                            FontSize="14"
+                                            Command="{Binding OpenOutputFolderCommand}" />
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
