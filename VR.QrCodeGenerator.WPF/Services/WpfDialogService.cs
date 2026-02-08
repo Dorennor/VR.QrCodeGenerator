@@ -11,7 +11,6 @@ namespace VR.QrCodeGenerator.WPF.Services
         public string OpenFolderDialog()
         {
             var openFolderDialog = new OpenFolderDialog();
-
             var result = openFolderDialog.ShowDialog();
 
             if (result.HasValue && result.Value)
@@ -23,7 +22,6 @@ namespace VR.QrCodeGenerator.WPF.Services
         public string OpenFileDialog()
         {
             var openFileDialog = new OpenFileDialog();
-
             var result = openFileDialog.ShowDialog();
 
             if (result.HasValue && result.Value)
@@ -35,7 +33,6 @@ namespace VR.QrCodeGenerator.WPF.Services
         public string SaveFileDialog(string defaultFileName)
         {
             var saveFileDialog = new SaveFileDialog();
-
             var result = saveFileDialog.ShowDialog();
 
             if (result.HasValue && result.Value)

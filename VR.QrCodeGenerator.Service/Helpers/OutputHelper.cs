@@ -26,12 +26,12 @@ namespace VR.QrCodeGenerator.Service.Helpers
                     Directory.CreateDirectory(outputPath);
             }
 
-            string fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid()}{ConvertImageType(imageFormat)}";
-            string fullPath = Path.Combine(outputPath, fileName);
+            var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid()}{ConvertImageType(imageFormat)}";
+            var fullPath = Path.Combine(outputPath, fileName);
 
             if (imageFormat == EnumImageFormat.Svg)
             {
-                string base64Data = Convert.ToBase64String(qrCode);
+                var base64Data = Convert.ToBase64String(qrCode);
 
                 XNamespace xNamespace = "http://www.w3.org/2000/svg";
 
@@ -60,7 +60,7 @@ namespace VR.QrCodeGenerator.Service.Helpers
 
         public static void CopyQrToClipboard(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                 return;
 
             var bitmap = new BitmapImage();

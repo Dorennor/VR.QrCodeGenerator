@@ -14,7 +14,7 @@ namespace VR.QrCodeGenerator.Service.Services
         public LoggingService(Settings settings)
         {
             const string fullTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{CallerMemberName}:{CallerLineNumber}] {Message:lj}{NewLine}{Exception}";
-            string appName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
+            var appName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
 
             var loggerConfiguration = new LoggerConfiguration().Enrich.FromLogContext();
 

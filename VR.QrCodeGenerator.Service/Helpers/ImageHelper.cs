@@ -13,7 +13,7 @@ namespace VR.QrCodeGenerator.Service.Helpers
 
             using (var memoryStream = new MemoryStream(imageData))
             {
-                BitmapImage bitmap = new BitmapImage();
+                var bitmap = new BitmapImage();
 
                 bitmap.BeginInit();
 
