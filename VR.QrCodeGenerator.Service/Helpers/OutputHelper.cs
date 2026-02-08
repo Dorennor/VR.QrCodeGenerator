@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using System.Xml.Linq;
 
 using VR.QrCodeGenerator.Model.Enums;
 
@@ -17,16 +18,38 @@ namespace VR.QrCodeGenerator.Service.Helpers
             }
             else
             {
-                string currentDirectory = Directory.GetCurrentDirectory();
-
-                outputPath = Path.Combine(currentDirectory, "Output");
-
+                outputPath = Path.Combine(Directory.GetCurrentDirectory(), "Output");
                 if (!Directory.Exists(outputPath))
                     Directory.CreateDirectory(outputPath);
             }
 
             string fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid()}{ConvertImageType(imageFormat)}";
             string fullPath = Path.Combine(outputPath, fileName);
+
+            if (imageFormat == EnumImageFormat.Svg)
+            {
+                string base64Data = Convert.ToBase64String(qrCode);
+
+                XNamespace xNamespace = "http://www.w3.org/2000/svg";
+
+                var xDocument = new XDocument(
+                    new XDeclaration("1.0", "utf-8", "no"),
+                    new XElement(xNamespace + "svg",
+                        new XAttribute("version", "1.1"),
+                        new XAttribute("width", "100%"),
+                        new XAttribute("height", "100%"),
+                        new XElement(xNamespace + "image",
+                            new XAttribute("href", $"data:image/png;base64,{base64Data}"),
+                            new XAttribute("width", "100%"),
+                            new XAttribute("height", "100%")
+                        )
+                    )
+                );
+
+                xDocument.Save(fullPath);
+
+                return fullPath;
+            }
 
             File.WriteAllBytes(fullPath, qrCode);
             return fullPath;
@@ -60,8 +83,8 @@ namespace VR.QrCodeGenerator.Service.Helpers
                 case EnumImageFormat.Png:
                     return ".png";
 
-                //case EnumImageFormat.Svg:
-                //    return ".svg";
+                case EnumImageFormat.Svg:
+                    return ".svg";
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(imageFormat), "Image type type is not supported!");
