@@ -2,9 +2,8 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
   </Folder>
-  <Project Path="VR.QrCodeGenerator.WinUI/VR.QrCodeGenerator.WinUI.csproj" Id="a23bb76d-d134-490c-a54c-41c096c5bcf4">
-    <Platform Project="x64" />
-    <Deploy />
-  </Project>
+  <Project Path="VR.QrCodeGenerator.Model/VR.QrCodeGenerator.Model.csproj" Id="e3453c8e-a3bd-4600-b149-c373020de82c" />
+  <Project Path="VR.QrCodeGenerator.Service/VR.QrCodeGenerator.Service.csproj" Id="ee14fdc1-4c24-46c4-982b-3b69364b5ef2" />
+  <Project Path="VR.QrCodeGenerator.ViewModel/VR.QrCodeGenerator.ViewModel.csproj" Id="f7f22f5a-c324-4b97-abee-c72f8847624f" />
   <Project Path="VR.QrCodeGenerator.WPF/VR.QrCodeGenerator.WPF.csproj" Id="e6c7a090-f341-46b3-ae7b-f4401f6f86a5" />
 </Solution>

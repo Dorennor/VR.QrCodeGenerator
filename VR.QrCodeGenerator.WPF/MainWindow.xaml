@@ -28,13 +28,20 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Row="0" Grid.Column="0" BorderBrush="Gray" BorderThickness="1">
-                <TextBox Name="UrlTextBox" Margin="10,10,5,10" Padding="3" HorizontalAlignment="Stretch" VerticalAlignment="Center" FontSize="14" TextChanged="UrlTextBox_OnTextChanged" />
+                <TextBox Name="UrlTextBox"
+                         Margin="10,10,5,10"
+                         Padding="3"
+                         HorizontalAlignment="Stretch"
+                         VerticalAlignment="Center"
+                         FontSize="14"
+                         TextChanged="UrlTextBox_OnTextChanged"
+                         Text="{Binding QrCodeContent}" />
             </Border>
 
             <Border Grid.Row="0" Grid.Column="1" BorderBrush="Gray" BorderThickness="1">
                 <StackPanel Orientation="Horizontal">
-                    <Button Name="GenerateQrCodeButton" Margin="10,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Click="GenerateQrCodeButton_OnClick" Content="Generate QR code" FontSize="14" />
-                    <Button Name="CopyToClipboardButton" Margin="5,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Click="CopyToClipboardButton_OnClick" Content="Copy QR code to clipboard" FontSize="14" />
+                    <Button Name="GenerateQrCodeButton" Margin="10,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding GenerateQrCodeCommand}" Content="Generate QR code" FontSize="14" />
+                    <Button Name="CopyToClipboardButton" Margin="5,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Command="{Binding CopyToClipboardCommand}" Content="Copy QR code to clipboard" FontSize="14" />
                     <Button Name="ResetQrCodeButton" Margin="5,10,5,10" Padding="5" HorizontalAlignment="Center" VerticalAlignment="Center" Click="ResetQrCodeButton_OnClick" Content="Reset QR code" FontSize="14" />
                 </StackPanel>
             </Border>
@@ -50,7 +57,8 @@
                         <Border Padding="10" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
                             <StackPanel>
                                 <TextBlock FontSize="12" Opacity="0.7" Text="Content Type:" />
-                                <ComboBox Name="ContentOptionsComboBox" HorizontalAlignment="Stretch" />
+                                <ComboBox Name="ContentOptionsComboBox" HorizontalAlignment="Stretch"
+                                          SelectedItem="{Binding SelectedContentType}" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -61,10 +69,12 @@
                             <StackPanel>
                                 <StackPanel Margin="0,0,0,10">
                                     <TextBlock FontSize="12" Opacity="0.7" Text="Redundancy (Error Correction):" />
-                                    <ComboBox Name="EccComboBox" HorizontalAlignment="Stretch" SelectedIndex="2">
+                                    <ComboBox Name="EccComboBox" HorizontalAlignment="Stretch" SelectedIndex="2"
+                                              SelectedValuePath="Tag"
+                                              SelectedValue="{Binding SelectedEccTag}">
                                         <ComboBoxItem Content="Low (7%)" Tag="L" />
                                         <ComboBoxItem Content="Medium (15%)" Tag="M" />
-                                        <ComboBoxItem Content="Quality (25%)" IsSelected="True" Tag="Q" />
+                                        <ComboBoxItem Content="Quality (25%)" Tag="Q" />
                                         <ComboBoxItem Content="High (30%)" Tag="H" />
                                     </ComboBox>
                                 </StackPanel>
@@ -74,7 +84,7 @@
                                         <TextBlock FontSize="12" Opacity="0.7" Text="Pixel Size:" />
                                         <TextBlock HorizontalAlignment="Right" FontSize="12" Opacity="0.7" Text="{Binding ElementName=PixelSizeSlider, Path=Value}" />
                                     </Grid>
-                                    <Slider Name="PixelSizeSlider" Maximum="50" Minimum="1" TickFrequency="1" Value="20" IsSnapToTickEnabled="True" />
+                                    <Slider Name="PixelSizeSlider" Maximum="50" Minimum="1" TickFrequency="1" Value="{Binding SelectedPixelsPerModule}" IsSnapToTickEnabled="True" />
                                 </StackPanel>
 
                                 <StackPanel>
@@ -86,7 +96,7 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0">
-                                            <TextBlock HorizontalAlignment="Center" FontSize="10" Opacity="0.6" Text="Code" />
+                                            <TextBlock HorizontalAlignment="Center" FontSize="10" Opacity="0.6" Text="QR code color" />
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 
                                                 <ToggleButton x:Name="FgColorButton"
@@ -108,7 +118,7 @@
 
                                                             <xctk:ColorPicker x:Name="FgColorPicker"
                                                                               Width="220"
-                                                                              SelectedColor="Black"
+                                                                              SelectedColor="{Binding SelectedForegroundColor}"
                                                                               DisplayColorAndName="True"
                                                                               SelectedColorChanged="FgColorPicker_OnSelectedColorChanged" />
 
@@ -123,7 +133,7 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1">
-                                            <TextBlock HorizontalAlignment="Center" FontSize="10" Opacity="0.6" Text="Back" />
+                                            <TextBlock HorizontalAlignment="Center" FontSize="10" Opacity="0.6" Text="Background color" />
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 
                                                 <ToggleButton x:Name="BgColorButton"
@@ -145,7 +155,7 @@
 
                                                             <xctk:ColorPicker x:Name="BgColorPicker"
                                                                               Width="220"
-                                                                              SelectedColor="White"
+                                                                              SelectedColor="{Binding SelectedBackgroundColor}"
                                                                               DisplayColorAndName="True"
                                                                               SelectedColorChanged="BgColorPicker_OnSelectedColorChangedColorPicker_OnSelectedColorChanged" />
 
@@ -169,7 +179,9 @@
                         <Border Padding="10" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
                             <StackPanel>
                                 <TextBlock FontSize="12" Opacity="0.7" Text="Extension:" />
-                                <ComboBox Name="FileFormatOptionsComboBox" HorizontalAlignment="Stretch" />
+                                <ComboBox Name="FileFormatOptionsComboBox"
+                                          HorizontalAlignment="Stretch"
+                                          SelectedItem="{Binding SelectedImageFormat}" />
                             </StackPanel>
                         </Border>
                     </StackPanel>

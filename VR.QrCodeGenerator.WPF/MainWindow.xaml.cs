@@ -2,127 +2,53 @@
 using System.Windows.Controls;
 using System.Windows.Media;
 
-using QRCoder;
-
-using VR.QrCodeGenerator.WPF.Enums;
-using VR.QrCodeGenerator.WPF.Helpers;
-using VR.QrCodeGenerator.WPF.Models;
-using VR.QrCodeGenerator.WPF.Models.Settings;
-using VR.QrCodeGenerator.WPF.Services;
+using VR.QrCodeGenerator.Model.Enums;
+using VR.QrCodeGenerator.Service.Helpers;
+using VR.QrCodeGenerator.Service.Interfaces;
+using VR.QrCodeGenerator.ViewModel.ViewModels;
 
 namespace VR.QrCodeGenerator.WPF
 {
     public partial class MainWindow : Window
     {
-        private readonly QrCodeOptions _options;
-        private byte[] _qrCode;
-        private string _qrCodePath;
+        private readonly MainViewModel _mainViewModel;
+        private readonly IDialogService _dialogService;
 
-        public MainWindow(Settings settings)
+        public MainWindow(MainViewModel mainViewModel, IDialogService dialogService)
         {
-            InitializeComponent();
+            _dialogService = dialogService;
+            _mainViewModel = mainViewModel;
+            _mainViewModel?.AfterQrCodeGenerated += DisplayGeneratedQrCode;
 
-            UrlTextBox.Text = string.Empty;
+            InitializeComponent();
 
             GenerateQrCodeButton.IsEnabled = false;
             CopyToClipboardButton.IsEnabled = false;
             ResetQrCodeButton.IsEnabled = false;
 
-            _options = new QrCodeOptions();
-
-            ContentOptionsComboBox.ItemsSource = Enum.GetValues(typeof(EnumContentType));
+            ContentOptionsComboBox.ItemsSource = Enum.GetValues<EnumContentType>();
             ContentOptionsComboBox.SelectedIndex = 0;
 
-            FileFormatOptionsComboBox.ItemsSource = Enum.GetValues(typeof(EnumImageFormat));
+            FileFormatOptionsComboBox.ItemsSource = Enum.GetValues<EnumImageFormat>();
             FileFormatOptionsComboBox.SelectedIndex = 0;
+
+            //FgColorButton.Background = new SolidColorBrush(Colors.Black);
+            //BgColorButton.Background = new SolidColorBrush(Colors.White);
         }
 
-        private void GenerateQrCodeButton_OnClick(object sender, RoutedEventArgs eventArgs)
+        public void DisplayGeneratedQrCode()
         {
-            bool isUriMode = ContentOptionsComboBox.SelectedItem is EnumContentType and EnumContentType.Uri;
-            bool isTextMode = ContentOptionsComboBox.SelectedItem is EnumContentType and EnumContentType.Text;
-
-            if ((isUriMode && UriHelper.IsValidUrl(UrlTextBox.Text)) || isTextMode)
+            try
             {
-                try
-                {
-                    var options = new QrCodeOptions
-                    {
-                        PixelsPerModule = (int)PixelSizeSlider.Value
-                    };
+                ImageHelper.DisplayImageFromBytes(_mainViewModel.QrCode, QrCodeImage);
 
-                    if (EccComboBox.SelectedItem is ComboBoxItem { Tag: string eccTag })
-                    {
-                        options.EccLevel = eccTag switch
-                        {
-                            "L" => QRCodeGenerator.ECCLevel.L,
-                            "M" => QRCodeGenerator.ECCLevel.M,
-                            "H" => QRCodeGenerator.ECCLevel.H,
-                            _ => QRCodeGenerator.ECCLevel.Q
-                        };
-                    }
-
-                    if (FgColorButton.Background is SolidColorBrush fg)
-                        options.ForegroundColor = [fg.Color.R, fg.Color.G, fg.Color.B];
-
-                    if (BgColorButton.Background is SolidColorBrush bg)
-                        options.BackgroundColor = [bg.Color.R, bg.Color.G, bg.Color.B];
-
-                    _qrCode = QrCodeHelper.GenerateAndSaveQr(UrlTextBox.Text, options);
-                }
-                catch (Exception ex)
-                {
-                    DialogService.ShowErrorMessageBox("Error during qr code generation process.");
-                    return;
-                }
-
-                try
-                {
-                    ImageHelper.DisplayImageFromBytes(_qrCode, QrCodeImage);
-                }
-                catch (Exception ex)
-                {
-                    DialogService.ShowErrorMessageBox("Error during displaying qr code process");
-                }
-
-                try
-                {
-                    _qrCodePath = OutputHelper.SaveToFile(_qrCode, imageFormat: (EnumImageFormat)FileFormatOptionsComboBox.SelectedItem);
-
-                    CopyToClipboardButton.IsEnabled = true;
-                    ResetQrCodeButton.IsEnabled = true;
-                }
-                catch (Exception ex)
-                {
-                    DialogService.ShowErrorMessageBox("Error during saving qr code process");
-                }
+                CopyToClipboardButton.IsEnabled = true;
+                ResetQrCodeButton.IsEnabled = true;
             }
-            else
+            catch (Exception ex)
             {
-                DialogService.ShowWarnMessageBox("Uri is broken");
+                _dialogService.ShowErrorMessageBox("Error during displaying qr code process");
             }
-        }
-
-        private void FgColorButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            //var dlg = new System.Windows.Forms.ColorDialog();
-
-            //if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            //{
-            //    var c = System.Drawing.Color.FromArgb(dlg.Color.ToArgb());
-            //    FgColorButton.Background = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B));
-            //}
-        }
-
-        private void BgColorButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            //var dlg = new System.Windows.Forms.ColorDialog();
-
-            //if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            //{
-            //    var c = System.Drawing.Color.FromArgb(dlg.Color.ToArgb());
-            //    BgColorButton.Background = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B));
-            //}
         }
 
         private void UrlTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
@@ -137,11 +63,6 @@ namespace VR.QrCodeGenerator.WPF
             {
                 GenerateQrCodeButton.IsEnabled = true;
             }
-        }
-
-        private void CopyToClipboardButton_OnClick(object sender, RoutedEventArgs eventArgs)
-        {
-            OutputHelper.CopyQrToClipboard(_qrCodePath);
         }
 
         private void ResetQrCodeButton_OnClick(object sender, RoutedEventArgs eventArgs)
