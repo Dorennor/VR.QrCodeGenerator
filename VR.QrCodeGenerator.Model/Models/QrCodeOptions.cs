@@ -13,5 +13,9 @@ namespace VR.QrCodeGenerator.Model.Models
         public byte[] BackgroundColor { get; set; } = [255, 255, 255];
 
         public bool DrawQuietZones { get; set; } = true;
+
+        public int Height { get; set; } = 500;
+
+        public int Width { get; set; } = 500;
     }
 }

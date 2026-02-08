@@ -1,5 +1,7 @@
 ﻿using QRCoder;
 
+using SkiaSharp;
+
 using VR.QrCodeGenerator.Model.Models;
 using VR.QrCodeGenerator.Service.Interfaces;
 
@@ -24,7 +26,29 @@ namespace VR.QrCodeGenerator.Service.Services
                             options.DrawQuietZones
                         );
 
-                        return qrCodeImage;
+                        return ResizeImage(qrCodeImage, options.Width, options.Height);
+                    }
+                }
+            }
+        }
+
+        private static byte[] ResizeImage(byte[] imageBytes, int targetWidth, int targetHeight)
+        {
+            using (SKBitmap originalBitmap = SKBitmap.Decode(imageBytes))
+            {
+                var sampling = new SKSamplingOptions(SKCubicResampler.Mitchell);
+
+                using (SKBitmap resizedBitmap = originalBitmap.Resize(new SKImageInfo(targetWidth, targetHeight), sampling))
+                {
+                    if (resizedBitmap == null)
+                        return imageBytes;
+
+                    using (SKImage image = SKImage.FromBitmap(resizedBitmap))
+                    {
+                        using (SKData data = image.Encode(SKEncodedImageFormat.Png, 100))
+                        {
+                            return data.ToArray();
+                        }
                     }
                 }
             }

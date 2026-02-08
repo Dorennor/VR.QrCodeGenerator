@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         mc:Ignorable="d"
-        Title="QR Code Generator" Height="600" Width="1000">
+        Title="QR Code Generator" Height="700" Width="1100">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -85,6 +85,36 @@
                                         <TextBlock HorizontalAlignment="Right" FontSize="12" Opacity="0.7" Text="{Binding ElementName=PixelSizeSlider, Path=Value}" />
                                     </Grid>
                                     <Slider Name="PixelSizeSlider" Maximum="50" Minimum="1" TickFrequency="1" Value="{Binding SelectedPixelsPerModule}" IsSnapToTickEnabled="True" />
+                                </StackPanel>
+
+                                <StackPanel Margin="0,0,0,10">
+                                    <TextBlock FontSize="12" Opacity="0.7" Text="QR code size:" Margin="0,0,0,5" />
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="15" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="H:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="SemiBold" />
+
+                                        <xctk:IntegerUpDown Grid.Column="1"
+                                                            Value="{Binding QrCodeHeight}"
+                                                            Increment="10"
+                                                            Minimum="10" Maximum="5000"
+                                                            Padding="5,2" />
+
+                                        <TextBlock Grid.Column="3" Text="W:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="SemiBold" />
+
+                                        <xctk:IntegerUpDown Grid.Column="4"
+                                                            Value="{Binding QrCodeWidth}"
+                                                            Increment="10"
+                                                            Minimum="10" Maximum="5000"
+                                                            Padding="5,2" />
+                                    </Grid>
                                 </StackPanel>
 
                                 <StackPanel>

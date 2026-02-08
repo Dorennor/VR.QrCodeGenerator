@@ -38,6 +38,12 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [ObservableProperty]
         private EnumImageFormat _selectedImageFormat;
 
+        [ObservableProperty]
+        private int _qrCodeHeight;
+
+        [ObservableProperty]
+        private int _qrCodeWidth;
+
         private readonly IDialogService _dialogService;
         private readonly IQrCodeGeneratorService _qrCodeGeneratorService;
         private readonly ILoggingService _loggingService;
@@ -62,6 +68,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             SelectedEccTag = "Q";
             SelectedForegroundColor = new SolidColorBrush(Colors.Black).Color;
             SelectedBackgroundColor = new SolidColorBrush(Colors.White).Color;
+            QrCodeHeight = 500;
+            QrCodeWidth = 500;
         }
 
         [RelayCommand]
@@ -83,14 +91,18 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                     PixelsPerModule = SelectedPixelsPerModule,
                     EccLevel = Enum.Parse<QRCodeGenerator.ECCLevel>(SelectedEccTag),
                     ForegroundColor = [SelectedForegroundColor.R, SelectedForegroundColor.G, SelectedForegroundColor.B],
-                    BackgroundColor = [SelectedBackgroundColor.R, SelectedBackgroundColor.G, SelectedBackgroundColor.B]
+                    BackgroundColor = [SelectedBackgroundColor.R, SelectedBackgroundColor.G, SelectedBackgroundColor.B],
+                    Height = QrCodeHeight,
+                    Width = QrCodeWidth
                 };
 
                 QrCode = _qrCodeGeneratorService.GenerateAndSaveQr(QrCodeContent, options);
             }
             catch (Exception ex)
             {
+                _loggingService.Error("Error during qr code generation process.", ex);
                 _dialogService.ShowErrorMessageBox("Error during qr code generation process.");
+
                 return;
             }
 
@@ -100,6 +112,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             }
             catch (Exception ex)
             {
+                _loggingService.Error("Error during saving qr code process", ex);
                 _dialogService.ShowErrorMessageBox("Error during saving qr code process");
             }
 

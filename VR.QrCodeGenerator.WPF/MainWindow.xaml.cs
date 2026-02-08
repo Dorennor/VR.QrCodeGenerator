@@ -1,5 +1,7 @@
-﻿using System.Windows;
+﻿using System.Text.RegularExpressions;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 using VR.QrCodeGenerator.Model.Enums;
@@ -31,9 +33,6 @@ namespace VR.QrCodeGenerator.WPF
 
             FileFormatOptionsComboBox.ItemsSource = Enum.GetValues<EnumImageFormat>();
             FileFormatOptionsComboBox.SelectedIndex = 0;
-
-            //FgColorButton.Background = new SolidColorBrush(Colors.Black);
-            //BgColorButton.Background = new SolidColorBrush(Colors.White);
         }
 
         public void DisplayGeneratedQrCode()
@@ -51,7 +50,7 @@ namespace VR.QrCodeGenerator.WPF
             }
         }
 
-        private void UrlTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
+        private void UrlTextBox_OnTextChanged(object sender, TextChangedEventArgs eventArgs)
         {
             if (string.IsNullOrEmpty(UrlTextBox.Text))
             {
@@ -78,7 +77,7 @@ namespace VR.QrCodeGenerator.WPF
                 FgColorButton.Background = new SolidColorBrush(eventArgs.NewValue.Value);
         }
 
-        private void FgColorPickerClose_OnClick(object sender, RoutedEventArgs e)
+        private void FgColorPickerClose_OnClick(object sender, RoutedEventArgs eventArgs)
         {
             FgColorButton.IsChecked = false;
         }
@@ -89,9 +88,15 @@ namespace VR.QrCodeGenerator.WPF
                 BgColorButton.Background = new SolidColorBrush(eventArgs.NewValue.Value);
         }
 
-        private void BgColorPickerClose_OnClick(object sender, RoutedEventArgs e)
+        private void BgColorPickerClose_OnClick(object sender, RoutedEventArgs eventArgs)
         {
             BgColorButton.IsChecked = false;
+        }
+
+        private void NumberValidationTextBox(object sender, TextCompositionEventArgs eventArgs)
+        {
+            Regex regex = new Regex("[^0-9]+");
+            eventArgs.Handled = regex.IsMatch(eventArgs.Text);
         }
     }
 }
