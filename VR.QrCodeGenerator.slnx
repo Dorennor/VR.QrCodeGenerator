@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="README.md" />
   </Folder>
   <Project Path="VR.QrCodeGenerator.Model/VR.QrCodeGenerator.Model.csproj" Id="e3453c8e-a3bd-4600-b149-c373020de82c" />
   <Project Path="VR.QrCodeGenerator.Service/VR.QrCodeGenerator.Service.csproj" Id="ee14fdc1-4c24-46c4-982b-3b69364b5ef2" />

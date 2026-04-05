@@ -18,13 +18,13 @@
 
   <ItemGroup>
 	  <PackageReference Include="Extended.Wpf.Toolkit" Version="5.0.0" />
-	  <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.2" />
-	  <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.2" />
-	  <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="10.0.2" />
-	  <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.2" />
-	  <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
-	  <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
-	  <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.5" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="10.0.5" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
+	  <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+	  <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+	  <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
 	  <PackageReference Include="WPF-UI" Version="4.2.0" />
   </ItemGroup>
 

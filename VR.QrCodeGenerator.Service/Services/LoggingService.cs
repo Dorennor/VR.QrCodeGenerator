@@ -13,10 +13,10 @@ namespace VR.QrCodeGenerator.Service.Services
     {
         public LoggingService(Settings settings)
         {
-            const string fullTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{CallerMemberName}:{CallerLineNumber}] {Message:lj}{NewLine}{Exception}";
+            const string fullTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}";
             var appName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
 
-            var loggerConfiguration = new LoggerConfiguration().Enrich.FromLogContext();
+            var loggerConfiguration = new LoggerConfiguration();
 
             if (settings.LoggingSettings.Debug)
                 loggerConfiguration.MinimumLevel.Debug();
