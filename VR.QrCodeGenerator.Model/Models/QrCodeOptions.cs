@@ -6,7 +6,11 @@ namespace VR.QrCodeGenerator.Model.Models
     {
         public QRCodeGenerator.ECCLevel EccLevel { get; set; } = QRCodeGenerator.ECCLevel.Q;
 
-        public int PixelsPerModule { get; set; } = 20;
+        /// <summary>
+        /// When set, every QR square is exactly this many pixels and the image size follows from the content, ignoring
+        /// <see cref="Width"/> and <see cref="Height"/>. When null, the code is scaled to fit Width and Height.
+        /// </summary>
+        public int? PixelsPerModule { get; set; }
 
         public byte[] ForegroundColor { get; set; } = "\0\0\0"u8.ToArray();
 

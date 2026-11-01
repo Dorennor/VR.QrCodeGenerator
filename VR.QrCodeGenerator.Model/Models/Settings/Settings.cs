@@ -2,7 +2,7 @@
 {
     public class Settings
     {
-        public LoggingSettings LoggingSettings { get; set; }
-        public PathsSettings PathsSettings { get; set; }
+        public LoggingSettings LoggingSettings { get; set; } = new LoggingSettings();
+        public PathsSettings PathsSettings { get; set; } = new PathsSettings();
     }
 }

@@ -1,16 +1,12 @@
 ﻿using System.IO;
-using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 
 namespace VR.QrCodeGenerator.Service.Helpers
 {
     public static class ImageHelper
     {
-        public static void DisplayImageFromBytes(byte[] imageData, Image qrCodeImage)
+        public static BitmapSource LoadBitmap(byte[] imageData)
         {
-            if (imageData == null || imageData.Length == 0)
-                return;
-
             using (var memoryStream = new MemoryStream(imageData))
             {
                 var bitmap = new BitmapImage();
@@ -23,7 +19,7 @@ namespace VR.QrCodeGenerator.Service.Helpers
                 bitmap.EndInit();
                 bitmap.Freeze();
 
-                qrCodeImage.Source = bitmap;
+                return bitmap;
             }
         }
     }

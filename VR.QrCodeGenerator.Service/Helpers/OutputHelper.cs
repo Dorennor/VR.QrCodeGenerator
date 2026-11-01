@@ -3,79 +3,40 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Xml.Linq;
 
 using VR.QrCodeGenerator.Model.Enums;
+using VR.QrCodeGenerator.Model.Models.Settings;
 
 namespace VR.QrCodeGenerator.Service.Helpers
 {
     public static class OutputHelper
     {
-        public static string SaveToFile(byte[] qrCode, string outputPath = null, EnumImageFormat imageFormat = EnumImageFormat.Png)
+        /// <summary>
+        /// The custom folder when one is configured, otherwise "Output" beside the executable.
+        /// </summary>
+        public static string GetOutputFolder(PathsSettings settings)
         {
-            if (!string.IsNullOrEmpty(outputPath))
-            {
-                if (!Directory.Exists(outputPath))
-                    throw new DirectoryNotFoundException("Folder does not exist.");
-            }
-            else
-            {
-                outputPath = Path.Combine(Directory.GetCurrentDirectory(), "Output");
+            if (settings is { UseCustomPath: true } && !string.IsNullOrWhiteSpace(settings.OutputPath))
+                return settings.OutputPath;
 
-                if (!Directory.Exists(outputPath))
-                    Directory.CreateDirectory(outputPath);
-            }
+            return Path.Combine(AppContext.BaseDirectory, "Output");
+        }
 
-            var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid()}{ConvertImageType(imageFormat)}";
-            var fullPath = Path.Combine(outputPath, fileName);
+        public static string SaveToFile(byte[] fileContent, string outputFolder, EnumImageFormat imageFormat)
+        {
+            Directory.CreateDirectory(outputFolder);
 
-            if (imageFormat == EnumImageFormat.Svg)
-            {
-                var base64Data = Convert.ToBase64String(qrCode);
+            var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid()}{GetExtension(imageFormat)}";
+            var fullPath = Path.Combine(outputFolder, fileName);
 
-                XNamespace xNamespace = "http://www.w3.org/2000/svg";
+            File.WriteAllBytes(fullPath, fileContent);
 
-                var xDocument = new XDocument(
-                    new XDeclaration("1.0", "utf-8", "no"),
-                    new XElement(xNamespace + "svg",
-                        new XAttribute("version", "1.1"),
-                        new XAttribute("width", "100%"),
-                        new XAttribute("height", "100%"),
-                        new XElement(xNamespace + "image",
-                            new XAttribute("href", $"data:image/png;base64,{base64Data}"),
-                            new XAttribute("width", "100%"),
-                            new XAttribute("height", "100%")
-                        )
-                    )
-                );
-
-                xDocument.Save(fullPath);
-
-                return fullPath;
-            }
-
-            File.WriteAllBytes(fullPath, qrCode);
             return fullPath;
         }
 
-        public static void CopyQrToClipboard(string filePath)
+        public static void CopyQrToClipboard(byte[] pngData)
         {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-                return;
-
-            var bitmap = new BitmapImage();
-
-            bitmap.BeginInit();
-
-            bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-
-            bitmap.EndInit();
-
-            if (bitmap.IsDownloading)
-                return;
-
-            var convertedBitmap = new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0);
+            var convertedBitmap = new FormatConvertedBitmap(ImageHelper.LoadBitmap(pngData), PixelFormats.Bgra32, null, 0);
 
             for (int i = 0; i < 3; i++)
             {
@@ -94,7 +55,7 @@ namespace VR.QrCodeGenerator.Service.Helpers
             }
         }
 
-        private static string ConvertImageType(EnumImageFormat imageFormat)
+        private static string GetExtension(EnumImageFormat imageFormat)
         {
             switch (imageFormat)
             {

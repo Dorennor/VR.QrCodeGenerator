@@ -1,14 +1,17 @@
 ﻿using System.Diagnostics;
-using System.IO;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using QRCoder;
+using QRCoder.Exceptions;
 
 using VR.QrCodeGenerator.Model.Enums;
 using VR.QrCodeGenerator.Model.Models;
+using VR.QrCodeGenerator.Model.Models.Settings;
+using VR.QrCodeGenerator.Service.Exceptions;
 using VR.QrCodeGenerator.Service.Helpers;
 using VR.QrCodeGenerator.Service.Interfaces;
 using VR.QrCodeGenerator.ViewModel.Abstractions;
@@ -17,13 +20,16 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
 {
     public partial class MainViewModel : BasicViewModel
     {
-        private string _qrCodePath;
-
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(GenerateQrCodeCommand))]
         private string _qrCodeContent;
 
         [ObservableProperty]
         private EnumContentType _selectedContentType;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(UseImageSize))]
+        private bool _useExactPixelSize;
 
         [ObservableProperty]
         private int _selectedPixelsPerModule;
@@ -46,19 +52,31 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [ObservableProperty]
         private int _qrCodeWidth;
 
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CopyToClipboardCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SaveQrCodeCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ResetQrCodeCommand))]
+        private BitmapSource _qrCodeImage;
+
+        [ObservableProperty]
+        private string _statusMessage;
+
         private readonly IDialogService _dialogService;
         private readonly IQrCodeGeneratorService _qrCodeGeneratorService;
         private readonly ILoggingService _loggingService;
+        private readonly string _outputFolder;
 
-        public byte[] QrCode;
+        // What the preview shows. Saving uses these, so settings changed since Generate do not affect the saved file.
+        private string _generatedContent;
+        private QrCodeOptions _generatedOptions;
+        private byte[] _generatedPng;
 
-        public event Action AfterQrCodeGenerated;
-
-        public MainViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService)
+        public MainViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
         {
             _dialogService = dialogService;
             _qrCodeGeneratorService = qrCodeGeneratorService;
             _loggingService = loggingService;
+            _outputFolder = OutputHelper.GetOutputFolder(settings?.PathsSettings);
 
             Initialize();
         }
@@ -74,74 +92,128 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             QrCodeWidth = 500;
         }
 
-        [RelayCommand]
+        /// <summary>
+        /// Height and Width decide the image size unless an exact pixel size does.
+        /// </summary>
+        public bool UseImageSize => !UseExactPixelSize;
+
+        private bool CanGenerate() => !string.IsNullOrWhiteSpace(QrCodeContent);
+
+        private bool HasQrCode() => QrCodeImage != null;
+
+        [RelayCommand(CanExecute = nameof(CanGenerate))]
         public void GenerateQrCode()
         {
+            var content = QrCodeContent;
+
             if (SelectedContentType is EnumContentType.Uri)
             {
-                if (!UriHelper.IsValidUrl(QrCodeContent))
+                content = content.Trim();
+
+                if (!UriHelper.IsValidUrl(content))
                 {
-                    _dialogService.ShowWarnMessageBox("Uri is broken");
+                    _dialogService.ShowWarnMessageBox("Enter a full link that starts with http:// or https://, or switch the content type to Text.");
                     return;
                 }
             }
 
+            var options = new QrCodeOptions
+            {
+                PixelsPerModule = UseExactPixelSize ? SelectedPixelsPerModule : null,
+                EccLevel = Enum.Parse<QRCodeGenerator.ECCLevel>(SelectedEccTag),
+                ForegroundColor = [SelectedForegroundColor.R, SelectedForegroundColor.G, SelectedForegroundColor.B],
+                BackgroundColor = [SelectedBackgroundColor.R, SelectedBackgroundColor.G, SelectedBackgroundColor.B],
+                Height = QrCodeHeight,
+                Width = QrCodeWidth
+            };
+
             try
             {
-                var options = new QrCodeOptions
-                {
-                    PixelsPerModule = SelectedPixelsPerModule,
-                    EccLevel = Enum.Parse<QRCodeGenerator.ECCLevel>(SelectedEccTag),
-                    ForegroundColor = [SelectedForegroundColor.R, SelectedForegroundColor.G, SelectedForegroundColor.B],
-                    BackgroundColor = [SelectedBackgroundColor.R, SelectedBackgroundColor.G, SelectedBackgroundColor.B],
-                    Height = QrCodeHeight,
-                    Width = QrCodeWidth
-                };
+                var png = _qrCodeGeneratorService.Generate(content, options);
 
-                QrCode = _qrCodeGeneratorService.GenerateAndSaveQr(QrCodeContent, options);
+                QrCodeImage = ImageHelper.LoadBitmap(png);
+                _generatedPng = png;
+                _generatedContent = content;
+                _generatedOptions = options;
+            }
+            catch (DataTooLongException ex)
+            {
+                _loggingService.Warn($"Content too long: {ex.Message}");
+                _dialogService.ShowWarnMessageBox("This content is too long for a QR code. Shorten it or choose a lower error correction level.");
+                return;
+            }
+            catch (QrCodeTooSmallException ex)
+            {
+                _dialogService.ShowWarnMessageBox(ex.Message);
+                return;
             }
             catch (Exception ex)
             {
                 _loggingService.Error("Error during qr code generation process.", ex);
-                _dialogService.ShowErrorMessageBox("Error during qr code generation process.");
-
+                _dialogService.ShowErrorMessageBox("Could not generate the QR code.");
                 return;
             }
 
+            SaveQrCode();
+        }
+
+        [RelayCommand(CanExecute = nameof(HasQrCode))]
+        public void CopyToClipboard()
+        {
             try
             {
-                _qrCodePath = OutputHelper.SaveToFile(QrCode, imageFormat: SelectedImageFormat);
+                OutputHelper.CopyQrToClipboard(_generatedPng);
+                StatusMessage = "Copied to clipboard";
+            }
+            catch (Exception ex)
+            {
+                _loggingService.Error("Error during copying qr code to clipboard.", ex);
+                _dialogService.ShowErrorMessageBox("Could not copy the QR code. Another app may be using the clipboard, please try again.");
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(HasQrCode))]
+        public void SaveQrCode()
+        {
+            try
+            {
+                var file = _qrCodeGeneratorService.Generate(_generatedContent, _generatedOptions, SelectedImageFormat);
+                var path = OutputHelper.SaveToFile(file, _outputFolder, SelectedImageFormat);
+
+                StatusMessage = $"Saved {QrCodeImage.PixelWidth} x {QrCodeImage.PixelHeight} px to {path}";
             }
             catch (Exception ex)
             {
                 _loggingService.Error("Error during saving qr code process", ex);
-                _dialogService.ShowErrorMessageBox("Error during saving qr code process");
+                _dialogService.ShowErrorMessageBox($"Could not save the QR code to {_outputFolder}.");
             }
-
-            AfterQrCodeGenerated?.Invoke();
         }
 
-        [RelayCommand]
-        public void CopyToClipboard()
+        [RelayCommand(CanExecute = nameof(HasQrCode))]
+        public void ResetQrCode()
         {
-            OutputHelper.CopyQrToClipboard(_qrCodePath);
-        }
-
-        [RelayCommand]
-        public void SaveQrCode()
-        {
-            _qrCodePath = OutputHelper.SaveToFile(QrCode, imageFormat: SelectedImageFormat);
+            QrCodeImage = null;
+            StatusMessage = null;
+            _generatedPng = null;
+            _generatedContent = null;
+            _generatedOptions = null;
         }
 
         [RelayCommand]
         public void OpenOutputFolder()
         {
-            var outputPath = Path.Combine(Directory.GetCurrentDirectory(), "Output");
+            try
+            {
+                System.IO.Directory.CreateDirectory(_outputFolder);
 
-            if (!Directory.Exists(outputPath))
-                Directory.CreateDirectory(outputPath);
-
-            Process.Start("explorer.exe", outputPath);
+                // The quotes matter: without them a path with spaces opens the wrong folder.
+                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{_outputFolder}\"") { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                _loggingService.Error("Error during opening output folder.", ex);
+                _dialogService.ShowErrorMessageBox($"Could not open {_outputFolder}.");
+            }
         }
     }
 }

@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Security;
 using System.Windows;
 
 using Microsoft.Extensions.Configuration;
@@ -13,6 +12,8 @@ using VR.QrCodeGenerator.Service.Interfaces;
 using VR.QrCodeGenerator.Service.Services;
 using VR.QrCodeGenerator.ViewModel.ViewModels;
 using VR.QrCodeGenerator.WPF.Services;
+
+using Wpf.Ui.Appearance;
 
 namespace VR.QrCodeGenerator.WPF
 {
@@ -26,6 +27,10 @@ namespace VR.QrCodeGenerator.WPF
             DispatcherUnhandledException += (sender, eventArgs) =>
             {
                 HandleGlobalException(eventArgs.Exception);
+
+                // Keep the app open: an unexpected error in one action should not lose the user's work.
+                eventArgs.Handled = true;
+                MessageBox.Show("Something went wrong. Details are in the logs folder beside the app.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             };
 
             AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
@@ -34,11 +39,11 @@ namespace VR.QrCodeGenerator.WPF
             };
 
             var configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .Build();
 
-            _settings = configuration.Get<Settings>();
+            _settings = configuration.Get<Settings>() ?? new Settings();
 
             _host = Host.CreateDefaultBuilder().ConfigureServices(ConfigureServices).Build();
         }
@@ -52,7 +57,7 @@ namespace VR.QrCodeGenerator.WPF
             services.AddSingleton<IQrCodeGeneratorService, QrCodeGeneratorService>();
 
             services.AddSingleton<MainViewModel>();
-            services.AddSingleton<MainWindow>(serviceProvider => new MainWindow(serviceProvider.GetService<MainViewModel>(), serviceProvider.GetService<IDialogService>())
+            services.AddSingleton<MainWindow>(serviceProvider => new MainWindow
             {
                 DataContext = serviceProvider.GetService<MainViewModel>()
             });
@@ -61,6 +66,8 @@ namespace VR.QrCodeGenerator.WPF
         protected override async void OnStartup(StartupEventArgs eventArgs)
         {
             await _host.StartAsync();
+
+            ApplicationThemeManager.ApplySystemTheme(true);
 
             var mainWindow = _host.Services.GetRequiredService<MainWindow>();
             mainWindow.Show();
@@ -112,7 +119,7 @@ namespace VR.QrCodeGenerator.WPF
 
                 EventLog.WriteEntry(appName, errorMessage, System.Diagnostics.EventLogEntryType.Error, 666);
             }
-            catch (SecurityException)
+            catch (Exception)
             {
                 // ignored
             }
