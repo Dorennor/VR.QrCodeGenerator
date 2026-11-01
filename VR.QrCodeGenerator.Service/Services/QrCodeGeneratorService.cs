@@ -16,6 +16,7 @@ namespace VR.QrCodeGenerator.Service.Services
     {
         // QRCoder's module matrix always includes a quiet zone of this many modules on every side.
         private const int QuietZoneModules = 4;
+
         private const int JpegQuality = 95;
 
         public byte[] Generate(string content, QrCodeOptions options, EnumImageFormat format = EnumImageFormat.Png)

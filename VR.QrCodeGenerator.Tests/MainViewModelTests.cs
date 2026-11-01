@@ -243,18 +243,33 @@ namespace VR.QrCodeGenerator.Tests
             public List<string> Errors { get; } = [];
 
             public string OpenFolderDialog() => string.Empty;
+
             public string OpenFileDialog() => string.Empty;
+
             public string SaveFileDialog(string defaultFileName) => string.Empty;
+
             public void ShowWarnMessageBox(string message) => Warnings.Add(message);
+
             public void ShowErrorMessageBox(string message) => Errors.Add(message);
-            public void ShowMessageBox(string message, string title = "Info", MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.Information) { }
+
+            public void ShowMessageBox(string message, string title = "Info", MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.Information)
+            {
+            }
         }
 
         private sealed class FakeLoggingService : ILoggingService
         {
-            public void Info(string message, string callerMemberName = "", int callerLineNumber = -1, string callerFilePath = "") { }
-            public void Warn(string message, string callerMemberName = "", int callerLineNumber = -1, string callerFilePath = "") { }
-            public void Error(string message, Exception exception = null, string callerMemberName = "", int callerLineNumber = -1, string callerFilePath = "") { }
+            public void Info(string message, string callerMemberName = "", int callerLineNumber = -1, string callerFilePath = "")
+            {
+            }
+
+            public void Warn(string message, string callerMemberName = "", int callerLineNumber = -1, string callerFilePath = "")
+            {
+            }
+
+            public void Error(string message, Exception exception = null, string callerMemberName = "", int callerLineNumber = -1, string callerFilePath = "")
+            {
+            }
         }
     }
 }

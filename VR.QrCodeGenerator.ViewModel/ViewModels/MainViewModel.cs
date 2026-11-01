@@ -68,6 +68,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
 
         // What the preview shows. Saving uses these, so settings changed since Generate do not affect the saved file.
         private string _generatedContent;
+
         private QrCodeOptions _generatedOptions;
         private byte[] _generatedPng;
 
