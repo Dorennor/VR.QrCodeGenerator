@@ -128,7 +128,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 ForegroundColor = [SelectedForegroundColor.R, SelectedForegroundColor.G, SelectedForegroundColor.B],
                 BackgroundColor = [SelectedBackgroundColor.R, SelectedBackgroundColor.G, SelectedBackgroundColor.B],
                 Height = QrCodeHeight,
-                Width = QrCodeWidth
+                Width = QrCodeWidth,
+                ChickenShape = _settings?.StyleSettings?.ChickenShape ?? false
             };
 
             try

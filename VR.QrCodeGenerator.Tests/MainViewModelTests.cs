@@ -23,9 +23,33 @@ namespace VR.QrCodeGenerator.Tests
             _folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
             _dialogs = new FakeDialogService();
 
-            var settings = new Settings { PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = _folder } };
+            _settings = new Settings { PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = _folder } };
 
-            _viewModel = new MainViewModel(_dialogs, new QrCodeGeneratorService(), new FakeLoggingService(), settings);
+            _viewModel = new MainViewModel(_dialogs, new QrCodeGeneratorService(), new FakeLoggingService(), _settings);
+        }
+
+        private Settings _settings;
+
+        [Test]
+        public void KurkodSetting_AppliesToTheNextGenerateWithoutRestart()
+        {
+            _viewModel.QrCodeContent = "https://example.com";
+            _viewModel.UseExactPixelSize = true;
+            _viewModel.SelectedPixelsPerModule = 6;
+
+            _viewModel.GenerateQrCodeCommand.Execute(null);
+            var plainWidth = _viewModel.QrCodeImage.PixelWidth;
+
+            // What the Settings page does on Save.
+            _settings.StyleSettings = new StyleSettings { ChickenShape = true };
+            _viewModel.GenerateQrCodeCommand.Execute(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(_viewModel.QrCodeImage.PixelWidth, Is.GreaterThan(plainWidth));
+                Assert.That(_viewModel.QrCodeImage.PixelWidth, Is.Not.EqualTo(_viewModel.QrCodeImage.PixelHeight));
+                Assert.That(SavedFiles().Select(file => QrCodeGeneratorServiceTests.Decode(File.ReadAllBytes(file))), Is.All.EqualTo("https://example.com"));
+            });
         }
 
         [TearDown]

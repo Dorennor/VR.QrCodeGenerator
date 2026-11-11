@@ -38,6 +38,7 @@ namespace VR.QrCodeGenerator.Tests
                 Assert.That(settings.LoggingSettings.File, Is.True);
                 Assert.That(settings.LoggingSettings.Debug, Is.False);
                 Assert.That(settings.PathsSettings.UseCustomPath, Is.False);
+                Assert.That(settings.StyleSettings.ChickenShape, Is.False, "Kurkod is off by default");
             });
         }
 
@@ -49,7 +50,8 @@ namespace VR.QrCodeGenerator.Tests
             service.Save(new Settings
             {
                 LoggingSettings = new LoggingSettings { File = false, Debug = true, Console = true },
-                PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = @"D:\QR" }
+                PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = @"D:\QR" },
+                StyleSettings = new StyleSettings { ChickenShape = true }
             });
 
             var loaded = service.Load();
@@ -62,6 +64,7 @@ namespace VR.QrCodeGenerator.Tests
                 Assert.That(loaded.LoggingSettings.Console, Is.True);
                 Assert.That(loaded.PathsSettings.UseCustomPath, Is.True);
                 Assert.That(loaded.PathsSettings.OutputPath, Is.EqualTo(@"D:\QR"));
+                Assert.That(loaded.StyleSettings.ChickenShape, Is.True);
             });
         }
 

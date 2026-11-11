@@ -42,6 +42,16 @@ Output details:
   - **Exact pixel size:** `QrCodeOptions.PixelsPerModule` is set, so every square is exactly that many pixels and no scaling happens. The image size is modules x pixels, so it depends on the content, and Height and Width are ignored and disabled. The status line reports the resulting size.
 - **PNG and JPG:** drawn by QRCoder, then composed and encoded by SkiaSharp.
 - **SVG:** a true vector image built from the QR matrix, with the same width and height as the other formats.
+- **All formats render the same module matrix** (`QrCodeGeneratorService.BuildModules`), which is not always square, so the image keeps its aspect ratio and gets margin instead of being stretched.
+
+### Kurkod (chicken-shaped QR codes)
+
+`StyleSettings.ChickenShape` (Settings page, off by default) sets `QrCodeOptions.ChickenShape`. `KurkodBuilder` then draws a chicken around the code: textured head, neck, tail and rounded body with a dark outline, solid beak, wattle, comb and legs, and an eye (a dark pupil in a light square).
+
+- The QR code's own modules are never changed, so no error correction is spent.
+- Scanners need light space beside the three finder patterns, so the drawing keeps a gap of 2 modules there (3 if needed). Each result is decoded with ZXing (`TryHarder` off) before it is used. If none scans, the fallback keeps a full 4-module quiet zone around the code, which is standard and always scans. In tests, 300 varied contents all scanned with the smallest gap.
+- The texture is seeded with a stable hash of the content, so the preview and the saved file are identical.
+- Shapes are defined in fractions of the code's size, so small codes (21 modules) get a blockier chicken than long ones.
 
 Save and Copy use what the preview shows, so settings changed since Generate do not affect them until the next Generate. Save does use the currently selected format. Copy always uses the in-memory PNG, whatever format was saved.
 

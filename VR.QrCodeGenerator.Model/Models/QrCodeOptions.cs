@@ -18,6 +18,12 @@ namespace VR.QrCodeGenerator.Model.Models
 
         public bool DrawQuietZones { get; set; } = true;
 
+        /// <summary>
+        /// Draws a chicken around the QR code ("Kurkod"). The QR code itself is left untouched, so it scans as usual;
+        /// the image is no longer square.
+        /// </summary>
+        public bool ChickenShape { get; set; }
+
         public int Height { get; set; } = 500;
 
         public int Width { get; set; } = 500;
