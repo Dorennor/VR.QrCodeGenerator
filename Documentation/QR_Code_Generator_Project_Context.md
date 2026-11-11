@@ -13,7 +13,7 @@ A small portable Windows desktop tool that turns text or a URL into a QR code. T
 - Extended.Wpf.Toolkit 5.0.0, only for `xctk:ColorCanvas`.
 - QRCoder for the QR matrix, SkiaSharp for the final PNG and JPG images.
 - CommunityToolkit.Mvvm for `[ObservableProperty]` and `[RelayCommand]`.
-- Microsoft.Extensions.Hosting and Configuration for DI and `appsettings.json`, Serilog for logging.
+- Microsoft.Extensions.Hosting for DI, System.Text.Json for the settings file, Serilog for logging.
 - NUnit and ZXing.Net in the tests. ZXing reads generated images back, so tests prove the codes scan.
 
 ## Solution layout
@@ -23,9 +23,9 @@ Dependencies run in one direction: WPF -> ViewModel -> Service -> Model.
 | Project | Contents |
 | --- | --- |
 | `VR.QrCodeGenerator.Model` | `QrCodeOptions`, `EnumContentType` (Uri, Text), `EnumImageFormat` (Png, Jpg, Svg), settings classes |
-| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService`, `LoggingService`, service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
-| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands |
-| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `appsettings.json`, publish profile |
+| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
+| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `SettingsViewModel`: the Settings page |
+| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Views/GeneratorPage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
 | `VR.QrCodeGenerator.Tests` | Service tests (formats, scanning, size limits) and view model tests (command states, error paths) |
 
 ## How generating works
@@ -52,17 +52,17 @@ Command availability lives in the view model (`CanExecute`), not in code-behind.
 | What | Where |
 | --- | --- |
 | Generated QR codes | `Output/` beside the executable, or the custom folder from settings, named `yyyyMMdd_HHmmss_<guid>.<ext>` |
-| Settings | `appsettings.json` beside the executable, optional |
-| Logs | `logs/` beside the executable: a daily Serilog file, plus `<app>_catastrophic.log` for unhandled exceptions |
+| Settings | `%LOCALAPPDATA%\VR.QrCodeGenerator\settings.json`, written by the Settings page; defaults apply until then |
+| Logs | `%LOCALAPPDATA%\VR.QrCodeGenerator\Logs\`: a daily Serilog file, plus `<app>_catastrophic.log` for unhandled exceptions |
 
-All paths use `AppContext.BaseDirectory`, so the app works from a shortcut with any "Start in" folder. The app is portable, so these folders must be writable. In a protected location such as Program Files, saving shows an error while preview and copy still work.
+Settings and logs live in the user profile (`AppPaths`), so the published app is one .exe and nothing else is written beside it except the default `Output/` folder. That folder uses `AppContext.BaseDirectory`, so it works from a shortcut with any "Start in" folder. In a protected location such as Program Files, saving to the default output folder shows an error; choose a custom folder in Settings.
 
 ## Settings
 
-`appsettings.json` has two sections. Without the file the defaults apply: file logging on, the default output folder.
+The Settings page (bottom of the navigation pane) edits `settings.json`. Save writes the file and applies the values to the running app at once: the shared `Settings` instance is updated and `ILoggingService.ApplySettings` rebuilds the logger. Without the file the defaults apply: file logging on, the default output folder. An `appsettings.json` beside the exe from an older version is read until settings are saved once. The file has two sections:
 
 - `LoggingSettings`: `File` and `Console` enable those log sinks. `Debug` sets the minimum level to Debug (otherwise Information); it does not enable a debug sink.
-- `PathsSettings`: with `UseCustomPath` true and `OutputPath` set, files go to that folder, which is created if missing. There is no UI for this yet.
+- `PathsSettings`: with `UseCustomPath` true and `OutputPath` set, files go to that folder, which is created if missing.
 
 ## Error handling
 
@@ -98,7 +98,7 @@ dotnet test VR.QrCodeGenerator.Tests
 
 Run the app with F5 in Visual Studio or by starting the built .exe.
 
-`Properties/PublishProfiles/FolderProfile.pubxml` creates a self-contained, single-file win-x64 build in `bin\Publish\net10.0-windows7.0\`. It is not one file on its own: `appsettings.json`, the native DLLs (WPF and SkiaSharp) and the `.pdb` files sit beside the roughly 140 MB .exe, and the app needs the DLLs to run.
+`Properties/PublishProfiles/FolderProfile.pubxml` creates a self-contained, single-file win-x64 build in `VR.QrCodeGenerator.WPF\bin\Publish\`: just `QR code generator.exe` (about 70 MB, compressed). Native DLLs are bundled (`IncludeNativeLibrariesForSelfExtract`), `.pdb` files are dropped and only English satellite resources are kept. Keep `PublishDir` relative: Visual Studio's publish page resolves `$(MSBuildProjectDirectory)` to the solution folder, which breaks its Navigate link.
 
 ```
 dotnet publish VR.QrCodeGenerator.WPF -p:PublishProfile=FolderProfile
@@ -117,7 +117,6 @@ These were the owner's choices on 2026-11-01. Do not change them without asking.
 
 - **Low contrast is not checked.** Similar or inverted colors can produce a code that will not scan.
 - **Clicking a color swatch while its popup is open does nothing.** OK or a click elsewhere closes it.
-- **Unused code:** `IDialogService.OpenFolderDialog`, `OpenFileDialog` and `SaveFileDialog` (which also ignores its `defaultFileName` argument), the `Serilog.Sinks.Debug` package, and the `Style\` exclusions in the WPF `.csproj`.
+- **Unused code:** `IDialogService.OpenFileDialog` and `SaveFileDialog` (which also ignores its `defaultFileName` argument), the `Serilog.Sinks.Debug` package, and the `Style\` exclusions in the WPF `.csproj`.
 - **Dialogs are standard `MessageBox` windows** and do not follow the theme (ModdingTools does the same).
 - **`ImageHelper` and `OutputHelper` use WPF types** in the Service layer, so that layer is tied to WPF.
-- **No application icon.** The title bar uses a symbol icon, and the .exe has the default icon.

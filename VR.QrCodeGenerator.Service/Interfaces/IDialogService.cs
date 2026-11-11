@@ -4,7 +4,7 @@ namespace VR.QrCodeGenerator.Service.Interfaces
 {
     public interface IDialogService
     {
-        string OpenFolderDialog();
+        string OpenFolderDialog(string initialDirectory = null);
 
         string OpenFileDialog();
 

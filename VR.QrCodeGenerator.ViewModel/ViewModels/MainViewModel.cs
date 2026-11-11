@@ -64,7 +64,10 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         private readonly IDialogService _dialogService;
         private readonly IQrCodeGeneratorService _qrCodeGeneratorService;
         private readonly ILoggingService _loggingService;
-        private readonly string _outputFolder;
+        private readonly Settings _settings;
+
+        // Read on every use so a folder changed on the Settings page applies right away.
+        private string OutputFolder => OutputHelper.GetOutputFolder(_settings?.PathsSettings);
 
         // What the preview shows. Saving uses these, so settings changed since Generate do not affect the saved file.
         private string _generatedContent;
@@ -77,7 +80,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             _dialogService = dialogService;
             _qrCodeGeneratorService = qrCodeGeneratorService;
             _loggingService = loggingService;
-            _outputFolder = OutputHelper.GetOutputFolder(settings?.PathsSettings);
+            _settings = settings;
 
             Initialize();
         }
@@ -179,14 +182,14 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             try
             {
                 var file = _qrCodeGeneratorService.Generate(_generatedContent, _generatedOptions, SelectedImageFormat);
-                var path = OutputHelper.SaveToFile(file, _outputFolder, SelectedImageFormat);
+                var path = OutputHelper.SaveToFile(file, OutputFolder, SelectedImageFormat);
 
                 StatusMessage = $"Saved {QrCodeImage.PixelWidth} x {QrCodeImage.PixelHeight} px to {path}";
             }
             catch (Exception ex)
             {
                 _loggingService.Error("Error during saving qr code process", ex);
-                _dialogService.ShowErrorMessageBox($"Could not save the QR code to {_outputFolder}.");
+                _dialogService.ShowErrorMessageBox($"Could not save the QR code to {OutputFolder}.");
             }
         }
 
@@ -205,15 +208,15 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         {
             try
             {
-                System.IO.Directory.CreateDirectory(_outputFolder);
+                System.IO.Directory.CreateDirectory(OutputFolder);
 
                 // The quotes matter: without them a path with spaces opens the wrong folder.
-                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{_outputFolder}\"") { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{OutputFolder}\"") { UseShellExecute = true });
             }
             catch (Exception ex)
             {
                 _loggingService.Error("Error during opening output folder.", ex);
-                _dialogService.ShowErrorMessageBox($"Could not open {_outputFolder}.");
+                _dialogService.ShowErrorMessageBox($"Could not open {OutputFolder}.");
             }
         }
     }

@@ -5,6 +5,7 @@ using Serilog;
 using Serilog.Context;
 
 using VR.QrCodeGenerator.Model.Models.Settings;
+using VR.QrCodeGenerator.Service.Helpers;
 using VR.QrCodeGenerator.Service.Interfaces;
 
 namespace VR.QrCodeGenerator.Service.Services
@@ -13,17 +14,24 @@ namespace VR.QrCodeGenerator.Service.Services
     {
         public LoggingService(Settings settings)
         {
+            ApplySettings(settings.LoggingSettings);
+        }
+
+        public void ApplySettings(LoggingSettings settings)
+        {
+            settings ??= new LoggingSettings();
+
             const string fullTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}";
             var appName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
 
             var loggerConfiguration = new LoggerConfiguration();
 
-            if (settings.LoggingSettings.Debug)
+            if (settings.Debug)
                 loggerConfiguration.MinimumLevel.Debug();
             else
                 loggerConfiguration.MinimumLevel.Information();
 
-            if (settings.LoggingSettings.Console)
+            if (settings.Console)
             {
                 loggerConfiguration.WriteTo.Console(
                     outputTemplate: fullTemplate,
@@ -31,15 +39,17 @@ namespace VR.QrCodeGenerator.Service.Services
                 );
             }
 
-            if (settings.LoggingSettings.File)
+            if (settings.File)
             {
                 loggerConfiguration.WriteTo.File(
-                    Path.Combine(AppContext.BaseDirectory, $"logs/{appName}_log.log"),
+                    Path.Combine(AppPaths.LogsDirectory, $"{appName}_log.log"),
                     rollingInterval: RollingInterval.Day,
                     outputTemplate: fullTemplate
                 );
             }
 
+            // The file sink locks its file: close the old logger before the new one opens the same file.
+            Log.CloseAndFlush();
             Log.Logger = loggerConfiguration.CreateLogger();
         }
 

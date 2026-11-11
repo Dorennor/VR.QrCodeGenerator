@@ -3,16 +3,18 @@ using System.IO;
 using System.Reflection;
 using System.Windows;
 
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using VR.QrCodeGenerator.Model.Models.Settings;
+using VR.QrCodeGenerator.Service.Helpers;
 using VR.QrCodeGenerator.Service.Interfaces;
 using VR.QrCodeGenerator.Service.Services;
 using VR.QrCodeGenerator.ViewModel.ViewModels;
 using VR.QrCodeGenerator.WPF.Services;
+using VR.QrCodeGenerator.WPF.Views;
 
+using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
 
 namespace VR.QrCodeGenerator.WPF
@@ -21,6 +23,7 @@ namespace VR.QrCodeGenerator.WPF
     {
         private readonly IHost _host;
         private readonly Settings _settings;
+        private readonly ISettingsService _settingsService;
 
         public App()
         {
@@ -30,7 +33,7 @@ namespace VR.QrCodeGenerator.WPF
 
                 // Keep the app open: an unexpected error in one action should not lose the user's work.
                 eventArgs.Handled = true;
-                MessageBox.Show("Something went wrong. Details are in the logs folder beside the app.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Something went wrong. Details are in {AppPaths.LogsDirectory}.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             };
 
             AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
@@ -38,12 +41,8 @@ namespace VR.QrCodeGenerator.WPF
                 HandleGlobalException(eventArgs.ExceptionObject as Exception);
             };
 
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .Build();
-
-            _settings = configuration.Get<Settings>() ?? new Settings();
+            _settingsService = new SettingsService();
+            _settings = _settingsService.Load();
 
             _host = Host.CreateDefaultBuilder().ConfigureServices(ConfigureServices).Build();
         }
@@ -53,14 +52,19 @@ namespace VR.QrCodeGenerator.WPF
             services.AddSingleton<Settings>(_settings);
 
             services.AddSingleton<ILoggingService, LoggingService>();
+            services.AddSingleton<ISettingsService>(_settingsService);
             services.AddSingleton<IDialogService, WpfDialogService>();
             services.AddSingleton<IQrCodeGeneratorService, QrCodeGeneratorService>();
 
             services.AddSingleton<MainViewModel>();
-            services.AddSingleton<MainWindow>(serviceProvider => new MainWindow
-            {
-                DataContext = serviceProvider.GetService<MainViewModel>()
-            });
+            services.AddSingleton<SettingsViewModel>();
+
+            // Singletons: switching pages keeps the generator's content and preview.
+            services.AddSingleton<GeneratorPage>();
+            services.AddSingleton<SettingsPage>();
+            services.AddSingleton<INavigationViewPageProvider, ServiceProviderPageProvider>();
+
+            services.AddSingleton<MainWindow>();
         }
 
         protected override async void OnStartup(StartupEventArgs eventArgs)
@@ -100,7 +104,7 @@ namespace VR.QrCodeGenerator.WPF
 
             try
             {
-                var logPath = Path.Combine(AppContext.BaseDirectory, "logs", $"{appName}_catastrophic.log");
+                var logPath = Path.Combine(AppPaths.LogsDirectory, $"{appName}_catastrophic.log");
 
                 Directory.CreateDirectory(Path.GetDirectoryName(logPath));
                 File.AppendAllText(logPath, errorMessage + "\n" + new string('-', 50) + "\n");

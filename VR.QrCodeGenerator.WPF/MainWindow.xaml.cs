@@ -1,35 +1,27 @@
-using System.Windows;
+using VR.QrCodeGenerator.WPF.Views;
 
-using VR.QrCodeGenerator.Model.Enums;
-
+using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
 
 namespace VR.QrCodeGenerator.WPF
 {
     public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
-        public MainWindow()
+        public MainWindow(INavigationViewPageProvider pageProvider)
         {
+            ArgumentNullException.ThrowIfNull(pageProvider);
+
             InitializeComponent();
 
-            // Follow the Windows light/dark setting while the app is running.
-            Loaded += (_, _) => SystemThemeWatcher.Watch(this, Wpf.Ui.Controls.WindowBackdropType.Mica, true);
+            RootNavigation.SetPageProviderService(pageProvider);
 
-            ContentOptionsComboBox.ItemsSource = Enum.GetValues<EnumContentType>();
-            ContentOptionsComboBox.SelectedIndex = 0;
+            Loaded += (_, _) =>
+            {
+                // Follow the Windows light/dark setting while the app is running.
+                SystemThemeWatcher.Watch(this, Wpf.Ui.Controls.WindowBackdropType.Mica, true);
 
-            FileFormatOptionsComboBox.ItemsSource = Enum.GetValues<EnumImageFormat>();
-            FileFormatOptionsComboBox.SelectedIndex = 0;
-        }
-
-        private void FgColorPickerClose_OnClick(object sender, RoutedEventArgs eventArgs)
-        {
-            FgColorButton.IsChecked = false;
-        }
-
-        private void BgColorPickerClose_OnClick(object sender, RoutedEventArgs eventArgs)
-        {
-            BgColorButton.IsChecked = false;
+                RootNavigation.Navigate(typeof(GeneratorPage));
+            };
         }
     }
 }

@@ -9,6 +9,34 @@
         never rely on the inherited default (black) foreground.
     -->
 
+    <!--  Pages  -->
+
+    <!--
+        CanContentScroll=False stops NavigationView from wrapping the page in its own ScrollViewer, so pages fill the
+        window height (the Generator preview stretches) and scroll themselves where needed.
+    -->
+    <Style x:Key="AppPageStyle" TargetType="Page">
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="False" />
+    </Style>
+
+    <Style x:Key="PageContentPanelStyle" TargetType="StackPanel">
+        <Setter Property="Margin" Value="36,24,36,36" />
+        <Setter Property="MaxWidth" Value="1000" />
+    </Style>
+
+    <!--  Page header: title and description on the left, page commands on the right.  -->
+    <Style x:Key="PageHeaderGridStyle" TargetType="Grid">
+        <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+
+    <Style x:Key="PageHeaderCommandsStyle" TargetType="StackPanel">
+        <Setter Property="Margin" Value="16,0,0,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Orientation" Value="Horizontal" />
+    </Style>
+
     <!--  Type ramp (Windows 11): Title 28, Body 14, Caption 12  -->
 
     <Style x:Key="PageTitleTextStyle" TargetType="TextBlock">

@@ -8,9 +8,12 @@ namespace VR.QrCodeGenerator.WPF.Services
 {
     public class WpfDialogService : IDialogService
     {
-        public string OpenFolderDialog()
+        public string OpenFolderDialog(string initialDirectory = null)
         {
             var openFolderDialog = new OpenFolderDialog();
+
+            if (!string.IsNullOrWhiteSpace(initialDirectory) && System.IO.Directory.Exists(initialDirectory))
+                openFolderDialog.InitialDirectory = initialDirectory;
             var result = openFolderDialog.ShowDialog();
 
             if (result.HasValue && result.Value)

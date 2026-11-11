@@ -242,7 +242,7 @@ namespace VR.QrCodeGenerator.Tests
             public List<string> Warnings { get; } = [];
             public List<string> Errors { get; } = [];
 
-            public string OpenFolderDialog() => string.Empty;
+            public string OpenFolderDialog(string initialDirectory = null) => string.Empty;
 
             public string OpenFileDialog() => string.Empty;
 
@@ -259,6 +259,10 @@ namespace VR.QrCodeGenerator.Tests
 
         private sealed class FakeLoggingService : ILoggingService
         {
+            public void ApplySettings(LoggingSettings settings)
+            {
+            }
+
             public void Info(string message, string callerMemberName = "", int callerLineNumber = -1, string callerFilePath = "")
             {
             }
