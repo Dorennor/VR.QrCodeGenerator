@@ -184,7 +184,7 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void ViewModel_UsesTheDrawingAndSavesWhatThePreviewShows()
+        public async Task ViewModel_UsesTheDrawingAndSavesWhatThePreviewShows()
         {
             var folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
 
@@ -199,12 +199,12 @@ namespace VR.QrCodeGenerator.Tests
                     Drawing = new Sketch().Ellipse(180, 180, 160, 160).Pixels
                 };
 
-                viewModel.GenerateQrCodeCommand.Execute(null);
+                await viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
                 var previewWidth = viewModel.QrCodeImage.PixelWidth;
 
                 // Changing the drawing after Generate must not change what Save writes.
                 viewModel.Drawing = null;
-                viewModel.SaveQrCodeCommand.Execute(null);
+                await viewModel.SaveQrCodeCommand.ExecuteAsync(null);
 
                 var files = Directory.GetFiles(folder);
 

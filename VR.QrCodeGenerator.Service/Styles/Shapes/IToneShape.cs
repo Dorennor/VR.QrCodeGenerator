@@ -14,6 +14,14 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
         bool DrawOutline { get; }
 
         /// <summary>
+        /// Whether, and how much, the code itself takes on the picture: each module keeps its centre exact (where
+        /// scanners read it) and its border follows the dithered picture, pulled this far towards the module's own color
+        /// (0 is the picture as it is, 1 the solid code). Null keeps the code solid. Needs at least 3 cells per module;
+        /// finder, timing and alignment patterns and format information always stay solid.
+        /// </summary>
+        double? CodeBlendBias { get; }
+
+        /// <summary>
         /// How dark the picture is over the cell centred at (u, v), from 0 (white) to 1 (black).
         /// </summary>
         /// <param name="size">The code's size in cells, so the cell's area can be averaged.</param>

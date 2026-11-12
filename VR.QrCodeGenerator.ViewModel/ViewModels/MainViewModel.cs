@@ -128,7 +128,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
 
         private bool CanGenerate() => !string.IsNullOrWhiteSpace(QrCodeContent);
 
-        private bool HasQrCode() => QrCodeImage != null;
+        // While busy the preview is about to change, so copying, saving or resetting it would act on the old one.
+        private bool HasQrCode() => QrCodeImage != null && !IsBusy;
 
         /// <summary>
         /// Why this page cannot generate yet (shown as a warning), or null when it can. For example a picture page with
@@ -136,8 +137,22 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         /// </summary>
         protected virtual string GenerateBlockedReason => null;
 
+        /// <summary>
+        /// True while a code is generated or saved in the background; the page shows a progress ring.
+        /// </summary>
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CopyToClipboardCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SaveQrCodeCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ResetQrCodeCommand))]
+        private bool _isBusy;
+
+        /// <summary>
+        /// Checks the input and options on the UI thread, then draws and renders the code in the background: a picture
+        /// or drawing can take a second or more, and the window stays responsive meanwhile. Generate is disabled until
+        /// it finishes.
+        /// </summary>
         [RelayCommand(CanExecute = nameof(CanGenerate))]
-        public void GenerateQrCode()
+        public async Task GenerateQrCodeAsync()
         {
             if (GenerateBlockedReason is { } reason)
             {
@@ -168,10 +183,14 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 Width = QrCodeWidth
             };
 
+            IsBusy = true;
+            StatusMessage = "Generating…";
+
             try
             {
+                // The style is made here, on the UI thread, from the page's current state; only the work moves off it.
                 var style = CreateStyle();
-                var png = _qrCodeGeneratorService.Generate(content, options, style);
+                var png = await Task.Run(() => _qrCodeGeneratorService.Generate(content, options, style));
 
                 QrCodeImage = ImageHelper.LoadBitmap(png);
                 _generatedPng = png;
@@ -182,22 +201,29 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             catch (DataTooLongException ex)
             {
                 _loggingService.Warn($"Content too long: {ex.Message}");
+                StatusMessage = null;
                 _dialogService.ShowWarnMessageBox("This content is too long for a QR code. Shorten it or choose a lower error correction level.");
                 return;
             }
             catch (QrCodeTooSmallException ex)
             {
+                StatusMessage = null;
                 _dialogService.ShowWarnMessageBox(ex.Message);
                 return;
             }
             catch (Exception ex)
             {
                 _loggingService.Error("Error during qr code generation process.", ex);
+                StatusMessage = null;
                 _dialogService.ShowErrorMessageBox("Could not generate the QR code.");
                 return;
             }
+            finally
+            {
+                IsBusy = false;
+            }
 
-            SaveQrCode();
+            await SaveQrCodeAsync();
         }
 
         [RelayCommand(CanExecute = nameof(HasQrCode))]
@@ -216,19 +242,28 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(HasQrCode))]
-        public void SaveQrCode()
+        public async Task SaveQrCodeAsync()
         {
+            var (content, options, style, format, folder) = (_generatedContent, _generatedOptions, _generatedStyle, SelectedImageFormat, OutputFolder);
+
+            IsBusy = true;
+
             try
             {
-                var file = _qrCodeGeneratorService.Generate(_generatedContent, _generatedOptions, _generatedStyle, SelectedImageFormat);
-                var path = OutputHelper.SaveToFile(file, OutputFolder, SelectedImageFormat);
+                // The generator reuses the drawing it just made, so this is mostly rendering and writing the file.
+                var path = await Task.Run(() => OutputHelper.SaveToFile(_qrCodeGeneratorService.Generate(content, options, style, format), folder, format));
 
                 StatusMessage = $"Saved {QrCodeImage.PixelWidth} x {QrCodeImage.PixelHeight} px to {path}";
             }
             catch (Exception ex)
             {
                 _loggingService.Error("Error during saving qr code process", ex);
-                _dialogService.ShowErrorMessageBox($"Could not save the QR code to {OutputFolder}.");
+                StatusMessage = null;
+                _dialogService.ShowErrorMessageBox($"Could not save the QR code to {folder}.");
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 

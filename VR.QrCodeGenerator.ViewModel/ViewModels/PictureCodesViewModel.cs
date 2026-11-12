@@ -59,6 +59,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(UsesTones))]
         [NotifyPropertyChangedFor(nameof(UsesSensitivity))]
+        [NotifyPropertyChangedFor(nameof(CanBlendCode))]
         private TemplateSourceOption _selectedSource = Sources[0];
 
         /// <summary>
@@ -93,7 +94,64 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         private ShapePoint _codeCenter = Middle;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanBlendCode))]
         private DetailOption _selectedDetail = Details[^1];
+
+        [ObservableProperty]
+        private CodeBlendOption _selectedCodeBlend = CodeBlends[2];
+
+        /// <summary>
+        /// The smallest and largest code, as a share of the picture's shorter side, for the slider and resizing on the
+        /// template.
+        /// </summary>
+        public const double MinCodeSize = 0.15;
+
+        public const double MaxCodeSize = 0.7;
+
+        public static IReadOnlyList<CodeBlendOption> CodeBlends { get; } =
+        [
+            new(null, "Off", "The code stays a solid black and white square."),
+            new(0.6, "Subtle", "The picture shows lightly through the code. The safest to scan."),
+            new(0.35, "Balanced", "The picture shows clearly through the code's squares; their centres stay exact."),
+            new(0.15, "Strong", "The code almost disappears into the picture. Test it with your phone.")
+        ];
+
+        /// <summary>
+        /// The code can only take on the picture's tones when it has them and each square has a border of dots around
+        /// its centre (Extra fine or Ultra detail).
+        /// </summary>
+        public bool CanBlendCode => UsesTones && SelectedDetail.CellsPerModule >= 3;
+
+        /// <summary>
+        /// The resize handle at the code square's bottom-right corner, in template pixels: about 4 % of the picture.
+        /// </summary>
+        public double CodeHandleSize => Math.Max(TemplateWidth, TemplateHeight) / 24.0;
+
+        public double CodeHandleLeft => CodeLeft + CodeSide - CodeHandleSize / 2;
+
+        public double CodeHandleTop => CodeTop + CodeSide - CodeHandleSize / 2;
+
+        /// <summary>
+        /// Resizes the code around its centre so its corner follows (<paramref name="x"/>, <paramref name="y"/>) in
+        /// template pixels, within <see cref="MinCodeSize"/> and <see cref="MaxCodeSize"/>.
+        /// </summary>
+        public void ResizeCodeTo(double x, double y)
+        {
+            if (_picture is null)
+                return;
+
+            var centreX = CodeLeft + CodeSide / 2;
+            var centreY = CodeTop + CodeSide / 2;
+            var side = 2 * Math.Max(Math.Abs(x - centreX), Math.Abs(y - centreY));
+
+            CodeSize = Math.Clamp(side / Math.Min(TemplateWidth, TemplateHeight), MinCodeSize, MaxCodeSize);
+        }
+
+        /// <summary>
+        /// Makes the code bigger (positive) or smaller (negative) by <paramref name="step"/> of the picture's shorter
+        /// side, for the mouse wheel.
+        /// </summary>
+        public void ResizeCodeBy(double step) => CodeSize = Math.Clamp(CodeSize + step, MinCodeSize, MaxCodeSize);
 
         public PictureCodesViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
             : base(dialogService, qrCodeGeneratorService, loggingService, settings)
@@ -173,12 +231,14 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 PictureTemplateSource.WholePicture => new PictureShape(
                     new MaskShape(template, CodeSize, gapToClose, ShapePart.Textured, codeClosesAreas: false, largestFilledArea: 0, codeCenter: CodeCenter),
                     (float[,])_darkness.Clone(),
-                    drawOutline: false),
+                    drawOutline: false,
+                    codeBlendBias: CanBlendCode ? SelectedCodeBlend.Bias : null),
 
                 PictureTemplateSource.Subject => new PictureShape(
                     new MaskShape(template, CodeSize, gapToClose, ShapePart.Textured, codeClosesAreas: false, largestFilledArea: LargestHoleInSubject, codeCenter: CodeCenter),
                     (float[,])_darkness.Clone(),
-                    drawOutline: true),
+                    drawOutline: true,
+                    codeBlendBias: CanBlendCode ? SelectedCodeBlend.Bias : null),
 
                 _ => new MaskShape(template, CodeSize, gapToClose, ShapePart.Textured, codeCenter: CodeCenter)
             };
@@ -208,6 +268,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 // A new picture starts with the code in the middle.
                 OnPropertyChanged(nameof(TemplateWidth));
                 OnPropertyChanged(nameof(TemplateHeight));
+                OnPropertyChanged(nameof(CodeHandleSize));
                 CodeCenter = Middle;
                 NotifyCodeSquareChanged();
 
@@ -257,6 +318,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             OnPropertyChanged(nameof(CodeLeft));
             OnPropertyChanged(nameof(CodeTop));
             OnPropertyChanged(nameof(CodeSide));
+            OnPropertyChanged(nameof(CodeHandleLeft));
+            OnPropertyChanged(nameof(CodeHandleTop));
         }
 
         private void OnTemplateInputChanged(object sender, PropertyChangedEventArgs eventArgs)
@@ -283,5 +346,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         public sealed record TemplateSourceOption(PictureTemplateSource Source, string Name, string Description);
 
         public sealed record DetailOption(int CellsPerModule, string Name, string Description);
+
+        /// <param name="Bias">How far a blended module's border leans to its own color, or null for a solid code.</param>
+        public sealed record CodeBlendOption(double? Bias, string Name, string Description);
     }
 }

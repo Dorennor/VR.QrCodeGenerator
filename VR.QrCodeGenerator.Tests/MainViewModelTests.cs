@@ -4,7 +4,9 @@ using System.Windows;
 using VR.QrCodeGenerator.Model.Enums;
 using VR.QrCodeGenerator.Model.Models.Settings;
 using VR.QrCodeGenerator.Service.Interfaces;
+using VR.QrCodeGenerator.Model.Models;
 using VR.QrCodeGenerator.Service.Services;
+using VR.QrCodeGenerator.Service.Styles;
 using VR.QrCodeGenerator.ViewModel.ViewModels;
 
 namespace VR.QrCodeGenerator.Tests
@@ -31,10 +33,58 @@ namespace VR.QrCodeGenerator.Tests
         private Settings _settings;
 
         [Test]
-        public void GeneratorPage_OffersNoStylesAndMakesPlainCodes()
+        public async Task Generate_RunsInTheBackground_AndIsBusyMeanwhile()
+        {
+            // A generator that holds until released: while it runs, the page is busy and Generate cannot start again.
+            using var release = new ManualResetEventSlim();
+            var viewModel = new MainViewModel(_dialogs, new BlockingGenerator(release), new FakeLoggingService(), _settings) { QrCodeContent = "https://example.com" };
+
+            var generating = viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(generating.IsCompleted, Is.False, "Generate returned before the code was made: it does not block");
+                Assert.That(viewModel.IsBusy, Is.True);
+                Assert.That(viewModel.GenerateQrCodeCommand.CanExecute(null), Is.False, "no second Generate while one runs");
+                Assert.That(viewModel.SaveQrCodeCommand.CanExecute(null), Is.False);
+            });
+
+            release.Set();
+            await generating;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(viewModel.IsBusy, Is.False);
+                Assert.That(viewModel.QrCodeImage, Is.Not.Null);
+                Assert.That(viewModel.GenerateQrCodeCommand.CanExecute(null), Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Waits for the test to release it before generating, so the test can look at the page meanwhile.
+        /// </summary>
+        private sealed class BlockingGenerator(ManualResetEventSlim release) : IQrCodeGeneratorService
+        {
+            private readonly QrCodeGeneratorService _inner = new();
+
+            public byte[] Generate(string content, QrCodeOptions options, EnumImageFormat format = EnumImageFormat.Png)
+            {
+                release.Wait(TimeSpan.FromSeconds(10));
+                return _inner.Generate(content, options, format);
+            }
+
+            public byte[] Generate(string content, QrCodeOptions options, IQrStyle style, EnumImageFormat format = EnumImageFormat.Png)
+            {
+                release.Wait(TimeSpan.FromSeconds(10));
+                return _inner.Generate(content, options, style, format);
+            }
+        }
+
+        [Test]
+        public async Task GeneratorPage_OffersNoStylesAndMakesPlainCodes()
         {
             _viewModel.QrCodeContent = "https://example.com";
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -45,7 +95,7 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void CustomCodesPage_OffersKurkodAndDrawsAScannableChicken()
+        public async Task CustomCodesPage_OffersKurkodAndDrawsAScannableChicken()
         {
             var custom = new CustomCodesViewModel(_dialogs, new QrCodeGeneratorService(), new FakeLoggingService(), _settings)
             {
@@ -54,7 +104,7 @@ namespace VR.QrCodeGenerator.Tests
                 SelectedPixelsPerModule = 6
             };
 
-            custom.GenerateQrCodeCommand.Execute(null);
+            await custom.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -89,11 +139,11 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void RejectedUrl_WarnsAndKeepsSaveAndCopyDisabled()
+        public async Task RejectedUrl_WarnsAndKeepsSaveAndCopyDisabled()
         {
             _viewModel.QrCodeContent = "not a link";
 
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -106,11 +156,11 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void UrlWithSurroundingSpaces_IsTrimmed()
+        public async Task UrlWithSurroundingSpaces_IsTrimmed()
         {
             _viewModel.QrCodeContent = "  https://example.com  ";
 
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.That(QrCodeGeneratorServiceTests.Decode(File.ReadAllBytes(SavedFiles().Single())), Is.EqualTo("https://example.com"));
         }
@@ -118,12 +168,12 @@ namespace VR.QrCodeGenerator.Tests
         [TestCase(EnumImageFormat.Png, ".png")]
         [TestCase(EnumImageFormat.Jpg, ".jpg")]
         [TestCase(EnumImageFormat.Svg, ".svg")]
-        public void Generate_SavesSelectedFormatAndEnablesActions(EnumImageFormat format, string extension)
+        public async Task Generate_SavesSelectedFormatAndEnablesActions(EnumImageFormat format, string extension)
         {
             _viewModel.QrCodeContent = "https://example.com";
             _viewModel.SelectedImageFormat = format;
 
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -136,11 +186,11 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void Copy_AfterSavingSvg_PutsImageOnClipboard()
+        public async Task Copy_AfterSavingSvg_PutsImageOnClipboard()
         {
             _viewModel.QrCodeContent = "https://example.com";
             _viewModel.SelectedImageFormat = EnumImageFormat.Svg;
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             _viewModel.CopyToClipboardCommand.Execute(null);
 
@@ -152,23 +202,23 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void Save_UsesWhatThePreviewShows_NotLaterChanges()
+        public async Task Save_UsesWhatThePreviewShows_NotLaterChanges()
         {
             _viewModel.QrCodeContent = "https://example.com/first";
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
             File.Delete(SavedFiles().Single());
 
             _viewModel.QrCodeContent = "https://example.com/second";
-            _viewModel.SaveQrCodeCommand.Execute(null);
+            await _viewModel.SaveQrCodeCommand.ExecuteAsync(null);
 
             Assert.That(QrCodeGeneratorServiceTests.Decode(File.ReadAllBytes(SavedFiles().Single())), Is.EqualTo("https://example.com/first"));
         }
 
         [Test]
-        public void Reset_ClearsEverythingSoSaveCannotRun()
+        public async Task Reset_ClearsEverythingSoSaveCannotRun()
         {
             _viewModel.QrCodeContent = "https://example.com";
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             _viewModel.ResetQrCodeCommand.Execute(null);
 
@@ -182,15 +232,15 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void TooLongContent_WarnsWithoutErrorAndKeepsPreviousCode()
+        public async Task TooLongContent_WarnsWithoutErrorAndKeepsPreviousCode()
         {
             _viewModel.SelectedContentType = EnumContentType.Text;
             _viewModel.QrCodeContent = "short";
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
             var previous = _viewModel.QrCodeImage;
 
             _viewModel.QrCodeContent = new string('x', 5000);
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -201,7 +251,7 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void ExactPixelSize_ReplacesHeightAndWidth()
+        public async Task ExactPixelSize_ReplacesHeightAndWidth()
         {
             _viewModel.QrCodeContent = "https://example.com";
             _viewModel.QrCodeWidth = 500;
@@ -209,7 +259,7 @@ namespace VR.QrCodeGenerator.Tests
 
             _viewModel.UseExactPixelSize = true;
             _viewModel.SelectedPixelsPerModule = 5;
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -221,14 +271,14 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void ByDefault_HeightAndWidthDecideTheSize_WhateverTheSliderSays()
+        public async Task ByDefault_HeightAndWidthDecideTheSize_WhateverTheSliderSays()
         {
             _viewModel.QrCodeContent = "https://example.com";
             _viewModel.QrCodeWidth = 500;
             _viewModel.QrCodeHeight = 300;
             _viewModel.SelectedPixelsPerModule = 5;
 
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -239,13 +289,13 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void TooSmallSize_Warns()
+        public async Task TooSmallSize_Warns()
         {
             _viewModel.QrCodeContent = "https://example.com";
             _viewModel.QrCodeWidth = 10;
             _viewModel.QrCodeHeight = 10;
 
-            _viewModel.GenerateQrCodeCommand.Execute(null);
+            await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -255,7 +305,7 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void UnwritableOutputFolder_ShowsErrorInsteadOfThrowing()
+        public async Task UnwritableOutputFolder_ShowsErrorInsteadOfThrowing()
         {
             // A file where the folder should be makes creating the folder fail.
             Directory.CreateDirectory(Path.GetDirectoryName(_folder));
@@ -265,7 +315,9 @@ namespace VR.QrCodeGenerator.Tests
             {
                 _viewModel.QrCodeContent = "https://example.com";
 
-                Assert.DoesNotThrow(() => _viewModel.GenerateQrCodeCommand.Execute(null));
+                // Throwing here would fail the test.
+                await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
+
                 Assert.That(_dialogs.Errors, Has.Count.EqualTo(1));
                 Assert.That(_viewModel.QrCodeImage, Is.Not.Null, "the preview still works");
             }

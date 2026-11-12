@@ -87,6 +87,29 @@
                            Stretch="Uniform"
                            StretchDirection="DownOnly" />
 
+                    <!--  While a code is generated or saved in the background: dim the old preview and show progress.  -->
+                    <Border Panel.ZIndex="1"
+                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                            Opacity="0.85">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <ui:ProgressRing HorizontalAlignment="Center" IsIndeterminate="True" />
+                            <TextBlock Margin="0,12,0,0"
+                                       HorizontalAlignment="Center"
+                                       Style="{StaticResource CaptionTextStyle}"
+                                       Text="Generating and checking that it scans…" />
+                        </StackPanel>
+                    </Border>
+
                     <!--  Empty state: shown until a QR code is generated and again after Reset.  -->
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel.Style>
@@ -95,6 +118,10 @@
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Source, ElementName=QrCodeImage}" Value="{x:Null}">
                                         <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <!--  Later triggers win: while generating, the progress ring replaces the empty state.  -->
+                                    <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

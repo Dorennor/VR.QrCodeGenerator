@@ -17,6 +17,14 @@ namespace VR.QrCodeGenerator.WPF.Views
         // While dragging: where in the code's square it was grabbed, so the square does not jump under the mouse.
         private Vector _grabOffset;
 
+        // While dragging the corner handle: resizing instead of moving.
+        private bool _resizing;
+
+        /// <summary>
+        /// One wheel notch changes the code by this share of the picture's shorter side.
+        /// </summary>
+        private const double WheelStep = 0.02;
+
         public PicturePage(PictureCodesViewModel viewModel)
         {
             _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -45,6 +53,18 @@ namespace VR.QrCodeGenerator.WPF.Views
         {
             var area = (IInputElement)sender;
             var position = eventArgs.GetPosition(area);
+
+            // The corner handle resizes; it is checked first, since it overlaps the square's corner.
+            _resizing = position.X >= _viewModel.CodeHandleLeft && position.X < _viewModel.CodeHandleLeft + _viewModel.CodeHandleSize
+                        && position.Y >= _viewModel.CodeHandleTop && position.Y < _viewModel.CodeHandleTop + _viewModel.CodeHandleSize;
+
+            if (_resizing)
+            {
+                area.CaptureMouse();
+                eventArgs.Handled = true;
+                return;
+            }
+
             var centre = new Point(_viewModel.CodeLeft + _viewModel.CodeSide / 2, _viewModel.CodeTop + _viewModel.CodeSide / 2);
             var onCode = position.X >= _viewModel.CodeLeft && position.X < _viewModel.CodeLeft + _viewModel.CodeSide
                          && position.Y >= _viewModel.CodeTop && position.Y < _viewModel.CodeTop + _viewModel.CodeSide;
@@ -65,13 +85,30 @@ namespace VR.QrCodeGenerator.WPF.Views
             if (Mouse.Captured != area || eventArgs.LeftButton != MouseButtonState.Pressed)
                 return;
 
+            if (_resizing)
+            {
+                var corner = eventArgs.GetPosition(area);
+                _viewModel.ResizeCodeTo(corner.X, corner.Y);
+                return;
+            }
+
             var position = eventArgs.GetPosition(area) - _grabOffset;
             _viewModel.MoveCodeTo(position.X, position.Y);
         }
 
         private void CodeArea_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs eventArgs)
         {
+            _resizing = false;
             ((IInputElement)sender).ReleaseMouseCapture();
+        }
+
+        /// <summary>
+        /// The mouse wheel over the picture resizes the code; the page does not scroll meanwhile.
+        /// </summary>
+        private void CodeArea_OnMouseWheel(object sender, MouseWheelEventArgs eventArgs)
+        {
+            _viewModel.ResizeCodeBy(Math.Sign(eventArgs.Delta) * WheelStep);
+            eventArgs.Handled = true;
         }
     }
 }

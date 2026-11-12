@@ -46,14 +46,20 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
 
             var seed = StableHash(content ?? string.Empty);
             var cells = QrDrawing.Expand(code, cellsPerModule);
-            var attempts = FinderGaps.Select(gap => (Gap: gap, WholeQuietZone: false))
-                                     .Append((Gap: QrMatrixEncoder.QuietZoneModules, WholeQuietZone: true));
+            var blended = BlendedCode.For(code, shape, cellsPerModule);
 
-            foreach (var (gap, wholeQuietZone) in attempts)
+            // A blended code first, at the asked strength and then pulled further towards the module's color; then the
+            // solid code.
+            var blendBiases = blended is null ? [] : FirmerBiases.Where(bias => bias > blended.Bias).Prepend(blended.Bias);
+            var attempts = blendBiases.Select(bias => (Gap: FinderGaps[0], WholeQuietZone: false, Blend: blended with { Bias = bias }))
+                           .Concat(FinderGaps.Select(gap => (Gap: gap, WholeQuietZone: false, Blend: (BlendedCode)null)))
+                           .Append((Gap: QrMatrixEncoder.QuietZoneModules, WholeQuietZone: true, Blend: null));
+
+            foreach (var (gap, wholeQuietZone, blend) in attempts)
             {
                 for (var texture = 0; texture < TexturesPerGap; texture++)
                 {
-                    var drawing = new QrDrawing(Draw(cells, cellsPerModule, shape, unchecked(seed + texture * 7919), gap * cellsPerModule, wholeQuietZone), cellsPerModule);
+                    var drawing = new QrDrawing(Draw(cells, cellsPerModule, shape, unchecked(seed + texture * 7919), gap * cellsPerModule, wholeQuietZone, blend), cellsPerModule);
 
                     if (QrScanVerifier.Scans(drawing, content))
                         return drawing;
@@ -63,9 +69,38 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
             return new QrDrawing(code);
         }
 
+        /// <summary>
+        /// When a blended code does not scan at the asked strength, these firmer pulls towards the module's own color
+        /// are tried before the solid code.
+        /// </summary>
+        private static readonly double[] FirmerBiases = [0.35, 0.6];
+
+        /// <summary>
+        /// The code drawn into the picture: which modules stay solid and how far borders lean to the module's color.
+        /// </summary>
+        private sealed record BlendedCode(bool[,] FixedModules, int CentreStart, int CentreSize, double Bias)
+        {
+            /// <summary>
+            /// Null when the shape has no tones, does not ask for blending, or the cells are too coarse for a border.
+            /// </summary>
+            public static BlendedCode For(bool[,] code, IShape shape, int cellsPerModule)
+            {
+                if (shape is not IToneShape { CodeBlendBias: { } bias } || cellsPerModule < 3)
+                    return null;
+
+                // A one-cell border all round: the centre is 1 x 1 of 3 x 3, 2 x 2 of 4 x 4.
+                return new BlendedCode(FunctionPatterns.Mask(code.Rows()), 1, cellsPerModule - 2, bias);
+            }
+
+            public bool IsExact(int moduleRow, int moduleColumn, int cellRow, int cellColumn) =>
+                FixedModules[moduleRow, moduleColumn]
+                || (cellRow >= CentreStart && cellRow < CentreStart + CentreSize && cellColumn >= CentreStart && cellColumn < CentreStart + CentreSize);
+        }
+
         /// <param name="code">The code in cells: each module as cellsPerModule x cellsPerModule cells.</param>
         /// <param name="gap">The gap beside the finder patterns, in cells.</param>
-        private static bool[,] Draw(bool[,] code, int cellsPerModule, IShape shape, int seed, int gap, bool keepWholeQuietZone)
+        /// <param name="blend">How to draw the code into the picture, or null for the solid code.</param>
+        private static bool[,] Draw(bool[,] code, int cellsPerModule, IShape shape, int seed, int gap, bool keepWholeQuietZone, BlendedCode blend)
         {
             // From here on everything is in cells: the code is `size` cells wide, a finder pattern 7 modules.
             var size = code.Rows();
@@ -133,7 +168,16 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
                 {
                     if (InCode(row, column))
                     {
-                        result[row, column] = code[row - top, column - left];
+                        var codeRow = row - top;
+                        var codeColumn = column - left;
+                        var moduleDark = code[codeRow, codeColumn];
+
+                        // A blended module's border follows the picture, leaning to the module's color; its centre and
+                        // the function patterns stay exact.
+                        result[row, column] = blend is null || blend.IsExact(codeRow / cellsPerModule, codeColumn / cellsPerModule, codeRow % cellsPerModule, codeColumn % cellsPerModule)
+                            ? moduleDark
+                            : Dither(row, column, (column - left + 0.5) / size, (row - top + 0.5) / size, 0.5, (moduleDark ? 1 : 0, blend.Bias));
+
                         continue;
                     }
 
@@ -156,9 +200,11 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
                 }
             }
 
-            bool Dither(int row, int column, double u, double v, double chance)
+            // lean: a darkness to pull the picture towards, and how far (0 none, 1 all the way), for blended code borders.
+            bool Dither(int row, int column, double u, double v, double chance, (double Target, double Amount) lean = default)
             {
-                var value = tones.Darkness(u, v, size) + error[row, column + 1];
+                var darkness = tones.Darkness(u, v, size);
+                var value = darkness + (lean.Target - darkness) * lean.Amount + error[row, column + 1];
                 var dark = value > 0.5 + (chance - 0.5) * DitherJitter;
                 var rest = value - (dark ? 1 : 0);
 

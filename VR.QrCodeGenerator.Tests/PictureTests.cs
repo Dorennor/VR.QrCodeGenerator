@@ -5,6 +5,7 @@ using SkiaSharp;
 
 using VR.QrCodeGenerator.Model.Models;
 using VR.QrCodeGenerator.Model.Models.Settings;
+using VR.QrCodeGenerator.Service.Generation;
 using VR.QrCodeGenerator.Service.Interfaces;
 using VR.QrCodeGenerator.Service.Pictures;
 using VR.QrCodeGenerator.Service.Services;
@@ -443,12 +444,12 @@ namespace VR.QrCodeGenerator.Tests
         /// <summary>
         /// A whole picture, dithered: the default style of the Picture tab.
         /// </summary>
-        private static IQrStyle Dithered(byte[] picture, int detail = 4, double codeSize = 0.3, ShapePoint? codeCenter = null)
+        private static IQrStyle Dithered(byte[] picture, int detail = 4, double codeSize = 0.3, ShapePoint? codeCenter = null, double? codeBlend = null)
         {
             var loaded = QrPicture.Load(picture);
             var mask = new MaskShape(loaded.ToTemplate(PictureTemplateSource.WholePicture, SKColors.Black, SKColors.White), codeSize, inkPart: ShapePart.Textured, codeClosesAreas: false, largestFilledArea: 0, codeCenter: codeCenter);
 
-            return new ShapeStyle(new PictureShape(mask, loaded.ToDarkness(), drawOutline: false), detail);
+            return new ShapeStyle(new PictureShape(mask, loaded.ToDarkness(), drawOutline: false, codeBlend), detail);
         }
 
         /// <summary>
@@ -581,6 +582,157 @@ namespace VR.QrCodeGenerator.Tests
             });
         }
 
+        private static IEnumerable<double> BlendStrengths() => PictureCodesViewModel.CodeBlends.Where(option => option.Bias is not null).Select(option => option.Bias.Value);
+
+        [Test]
+        public void BlendedCode_ScansAtEveryPixelSize([ValueSource(nameof(BlendStrengths))] double strength, [Values(3, 4)] int detail)
+        {
+            var style = Dithered(Scene(), detail, codeBlend: strength);
+
+            var failures = new[] { 3, 4, 6, 9, 12, 16 }
+                           .Where(pixels => QrCodeGeneratorServiceTests.Decode(_service.Generate(Url, new QrCodeOptions { PixelsPerModule = pixels }, style)) != Url)
+                           .ToList();
+
+            Assert.That(failures, Is.Empty, "pixel sizes that did not scan");
+        }
+
+        [Test]
+        public void BlendedCode_OnHostilePictures_Scans([Values("black", "white", "noise")] string picture)
+        {
+            var random = new Random(3);
+            var bytes = picture switch
+            {
+                "black" => Png(300, 300, canvas => canvas.Clear(SKColors.Black)),
+                "white" => Png(300, 300, canvas => canvas.Clear(SKColors.White)),
+                _ => Png(300, 300, canvas =>
+                {
+                    using var paint = new SKPaint();
+
+                    for (var y = 0; y < 300; y += 2)
+                    {
+                        for (var x = 0; x < 300; x += 2)
+                        {
+                            var gray = (byte)random.Next(256);
+                            paint.Color = new SKColor(gray, gray, gray);
+                            canvas.DrawRect(x, y, 2, 2, paint);
+                        }
+                    }
+                })
+            };
+
+            Assert.That(QrCodeGeneratorServiceTests.Decode(_service.Generate(Url, new QrCodeOptions { PixelsPerModule = 8 }, Dithered(bytes, codeBlend: 0.15))), Is.EqualTo(Url));
+        }
+
+        [Test]
+        public void BlendedCode_KeepsCentresAndFunctionPatternsExact_AndShowsThePicture()
+        {
+            // A black picture with the code on it: blended module borders turn dark, centres and patterns do not change.
+            var code = QrMatrixEncoder.Encode(Url, QRCoder.QRCodeGenerator.ECCLevel.Q);
+            var size = code.GetLength(0);
+            var fixedModules = FunctionPatterns.Mask(size);
+            const int detail = 4;
+
+            var drawing = Dithered(Png(300, 300, canvas => canvas.Clear(SKColors.Black)), detail, codeSize: 0.5, codeBlend: 0.15).Apply(code, Url);
+            var cells = drawing.Cells;
+
+            // The code sits in the middle of the cropped drawing; find its top-left by its finder pattern's size.
+            var codeCells = size * detail;
+            var top = (cells.GetLength(0) - codeCells) / 2;
+            var left = (cells.GetLength(1) - codeCells) / 2;
+
+            int borderDarkened = 0, borderLight = 0;
+
+            for (var row = 0; row < size; row++)
+            {
+                for (var column = 0; column < size; column++)
+                {
+                    for (var i = 0; i < detail; i++)
+                    {
+                        for (var j = 0; j < detail; j++)
+                        {
+                            var cell = cells[top + row * detail + i, left + column * detail + j];
+                            var centre = i is 1 or 2 && j is 1 or 2;
+
+                            if (fixedModules[row, column] || centre)
+                                Assert.That(cell, Is.EqualTo(code[row, column]), $"module ({row}, {column}), cell ({i}, {j}) must stay exact");
+                            else if (!code[row, column])
+                            {
+                                borderLight++;
+                                borderDarkened += cell ? 1 : 0;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Assert.That((double)borderDarkened / borderLight, Is.GreaterThan(0.5), "on a black picture, light modules' borders mostly turn dark");
+        }
+
+        [Test]
+        public void ViewModel_ResizesTheCodeOnThePicture_WithinLimits()
+        {
+            var folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
+            var pictureFile = Path.Combine(folder, "scene.png");
+            Directory.CreateDirectory(folder);
+            File.WriteAllBytes(pictureFile, Scene());
+
+            try
+            {
+                var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
+                viewModel.LoadPicture(pictureFile);
+
+                var centreX = viewModel.CodeLeft + viewModel.CodeSide / 2;
+                var centreY = viewModel.CodeTop + viewModel.CodeSide / 2;
+                var shorter = Math.Min(viewModel.TemplateWidth, viewModel.TemplateHeight);
+
+                // Dragging the corner 25 % of the shorter side away from the centre makes a code half the shorter side.
+                viewModel.ResizeCodeTo(centreX + shorter * 0.25, centreY + shorter * 0.1);
+                var dragged = viewModel.CodeSize;
+
+                viewModel.ResizeCodeTo(centreX + 10_000, centreY);
+                var largest = viewModel.CodeSize;
+
+                viewModel.ResizeCodeTo(centreX, centreY);
+                var smallest = viewModel.CodeSize;
+
+                viewModel.ResizeCodeBy(0.02);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(dragged, Is.EqualTo(0.5).Within(0.01));
+                    Assert.That(largest, Is.EqualTo(PictureCodesViewModel.MaxCodeSize));
+                    Assert.That(smallest, Is.EqualTo(PictureCodesViewModel.MinCodeSize));
+                    Assert.That(viewModel.CodeSize, Is.EqualTo(PictureCodesViewModel.MinCodeSize + 0.02).Within(1e-9), "one wheel notch");
+                    Assert.That(viewModel.CodeHandleLeft, Is.EqualTo(viewModel.CodeLeft + viewModel.CodeSide - viewModel.CodeHandleSize / 2).Within(1e-9));
+                });
+            }
+            finally
+            {
+                Directory.Delete(folder, true);
+            }
+        }
+
+        [Test]
+        public void ViewModel_OffersBlendingOnlyWhereItCanWork()
+        {
+            var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
+            var defaults = (viewModel.CanBlendCode, viewModel.SelectedCodeBlend.Name);
+
+            viewModel.SelectedDetail = PictureCodesViewModel.Details.Single(detail => detail.CellsPerModule == 2);
+            var fine = viewModel.CanBlendCode;
+
+            viewModel.SelectedDetail = PictureCodesViewModel.Details[^1];
+            viewModel.SelectedSource = PictureCodesViewModel.Sources.Single(source => source.Source == PictureTemplateSource.CodeColor);
+            var codeColor = viewModel.CanBlendCode;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(defaults, Is.EqualTo((true, "Balanced")));
+                Assert.That(fine, Is.False, "Fine has no border of dots around a module's centre");
+                Assert.That(codeColor, Is.False, "QR code color has no tones");
+            });
+        }
+
         [Test]
         public void NotAPicture_IsRefused()
         {
@@ -588,7 +740,7 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void ViewModel_AsksForAPictureFirst_ThenUsesItAsTheTemplate()
+        public async Task ViewModel_AsksForAPictureFirst_ThenUsesItAsTheTemplate()
         {
             var folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
             var pictureFile = Path.Combine(folder, "cat.png");
@@ -606,13 +758,13 @@ namespace VR.QrCodeGenerator.Tests
                     SelectedPixelsPerModule = 4
                 };
 
-                viewModel.GenerateQrCodeCommand.Execute(null);
+                await viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
                 var warnedWithoutPicture = dialogs.Warnings.Count == 1 && viewModel.QrCodeImage is null;
 
                 viewModel.LoadPicture(pictureFile);
                 var firstPreview = viewModel.TemplatePreview;
 
-                viewModel.GenerateQrCodeCommand.Execute(null);
+                await viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
                 var saved = Directory.GetFiles(Path.Combine(folder, "out")).Single();
                 using var image = SKBitmap.Decode(saved);
 

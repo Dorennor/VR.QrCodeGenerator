@@ -31,9 +31,9 @@ Dependencies run in one direction: WPF -> ViewModel -> Service -> Model.
 ## How generating works
 
 1. Generate is available once the content is not blank (button or Enter in the text box).
-2. `MainViewModel.GenerateQrCode` trims the content and requires an http or https URL when the content type is Uri. Text is not validated.
-3. `QrCodeGeneratorService.Generate` renders the code in the requested format and returns the bytes. It never touches the disk.
-4. The view model shows the PNG through the bound `QrCodeImage`, remembers the content and options, and saves a file in the selected format. **Every Generate writes a file.**
+2. `MainViewModel.GenerateQrCodeAsync` trims the content and requires an http or https URL when the content type is Uri. Text is not validated. The checks, the options and the style are taken on the UI thread.
+3. `QrCodeGeneratorService.Generate` runs in the background (`Task.Run`) and returns the bytes; it never touches the disk. Meanwhile `IsBusy` is true: the preview shows a progress ring, Generate is disabled (async command), and Copy, Save and Reset wait. A picture or drawing can take a second or more, and the window stays responsive.
+4. The view model shows the PNG through the bound `QrCodeImage`, remembers the content, options and style, and saves a file in the selected format, also in the background (`SaveQrCodeAsync`). **Every Generate writes a file.**
 
 Output details:
 
@@ -110,12 +110,14 @@ Why dithering: an earlier version reduced the picture to a yes/no silhouette and
   - The template image and the square share one `Viewbox` at template pixel size, so mouse positions on its `Canvas` are template pixels, whatever the zoom.
   - `PictureCodesViewModel.MoveCodeTo` stores the position as `CodeCenter` (fractions of width and height). `MaskShape.CodeSquare`, used by both the overlay and the shape, keeps the whole code inside the picture, so dragging past an edge stops there.
   - A new picture, or **Center**, puts the code back in the middle.
+  - **Resizing on the template:** drag the white handle at the square's bottom-right corner (it resizes around the centre, `ResizeCodeTo`), or turn the mouse wheel over the picture (2 % per notch, `ResizeCodeBy`). The size stays within 15–70 % of the shorter side.
 - **Other controls:**
   - **Shape from:** **Whole picture** (the default, dithered), **Subject (automatic)** (dithered, with an outline), or **QR code color** (Kurkod-like random texture, for line art).
   - **Brightness** (−50 to +50 %) and **Contrast** (50–200 %): applied to the tones before dithering. Whole picture and Subject only.
   - **Sensitivity** (20–80 %, default 50 %): how much of the picture counts. Subject and QR code color only.
-  - **Code size** (20–60 % of the shorter side, default 30 %): a smaller code leaves more picture around it.
+  - **Code size** (15–70 % of the shorter side in 1 % steps, default 30 %): a smaller code leaves more picture around it. Also set by resizing on the template.
   - **Detail:** Normal, Fine, Extra fine or **Ultra** (the default): 1, 2, 3 or 4 cells per module side.
+  - **Code blending:** Off, Subtle, **Balanced** (the default) or Strong. Only with tones and Extra fine or Ultra detail.
 - **`QrPicture`:**
   - Loads PNG, JPG, BMP, GIF (first frame), WEBP or ICO through SkiaSharp. Unreadable data gives `InvalidDataException`.
   - Scales the picture once to 1200 px on the long side, about as many as the finest cells need, so template changes stay quick.
@@ -133,6 +135,12 @@ Why dithering: an earlier version reduced the picture to a yes/no silhouette and
 - **Dithering (`IToneShape`):** a shape that implements it gives the darkness of any cell (`PictureShape`: an average from a summed-area table). `ShapedCodeBuilder` then fills its textured cells by error diffusion instead of random texture.
   - The threshold jitters by ±0.1 with the seed, so a retry is a different drawing.
   - Dithered cells skip the "no 3 x 3 dark block" rule, which would sprinkle dots over every dark area. The scan check covers them instead.
+- **Code blending (`IToneShape.CodeBlendBias`):** a solid code looked pasted onto a dithered picture, so the code can take on the picture too. This is the halftone QR idea in black and white.
+  - Every module keeps its centre exact: 1 x 1 of 3 x 3 cells, 2 x 2 of 4 x 4. That is where scanners read it. Its one-cell border is dithered from the picture, pulled `bias` of the way towards the module's own color, so a blurred camera image still averages to the right color.
+  - Function patterns (`FunctionPatterns.Mask`: finders with separators, timing, alignment, format and version information) stay solid.
+  - The page offers Subtle (0.6), Balanced (0.35) and Strong (0.15).
+  - `ShapedCodeBuilder` tries the chosen strength, then firmer ones (0.35, 0.6), then the solid code with the usual gaps and quiet zone. A blended code that does not pass the scan check is never returned.
+  - Strong passes ZXing on clean images. On a phone camera, Balanced or Subtle is safer.
 - **Detail:** `ShapeStyle(shape, cellsPerModule)` makes `ShapedCodeBuilder` draw the shape in 2 x 2, 3 x 3 or 4 x 4 cells per module.
   - The code's modules cover whole blocks of cells and stay unchanged.
   - Finder gaps and the quiet zone stay the same in modules, and `QrScanVerifier` checks every result at the same module sizes.

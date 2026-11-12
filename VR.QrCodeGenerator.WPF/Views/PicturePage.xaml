@@ -52,7 +52,8 @@
                                                 MouseLeftButtonDown="CodeArea_OnMouseLeftButtonDown"
                                                 MouseLeftButtonUp="CodeArea_OnMouseLeftButtonUp"
                                                 MouseMove="CodeArea_OnMouseMove"
-                                                ToolTip="Drag the blue square to move the code, or click where it should go">
+                                                MouseWheel="CodeArea_OnMouseWheel"
+                                                ToolTip="Drag the blue square to move the code, drag its corner (or use the mouse wheel) to resize it, or click where it should go">
                                             <Border Canvas.Left="{Binding CodeLeft}"
                                                     Canvas.Top="{Binding CodeTop}"
                                                     Width="{Binding CodeSide}"
@@ -65,6 +66,17 @@
                                                     <ui:SymbolIcon Foreground="#FF0078D4" Symbol="QrCode24" />
                                                 </Viewbox>
                                             </Border>
+
+                                            <!--  Resize handle: drag to make the code bigger or smaller around its centre.  -->
+                                            <Border Canvas.Left="{Binding CodeHandleLeft}"
+                                                    Canvas.Top="{Binding CodeHandleTop}"
+                                                    Width="{Binding CodeHandleSize}"
+                                                    Height="{Binding CodeHandleSize}"
+                                                    Background="White"
+                                                    BorderBrush="#FF0078D4"
+                                                    BorderThickness="3"
+                                                    CornerRadius="3"
+                                                    IsHitTestVisible="False" />
                                         </Canvas>
                                     </Grid>
                                 </Viewbox>
@@ -213,11 +225,12 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="48" />
                         </Grid.ColumnDefinitions>
+                        <!--  Fine steps: resizing on the template sets any size, and snapping would move it.  -->
                         <Slider VerticalAlignment="Center"
                                 IsSnapToTickEnabled="True"
-                                Maximum="0.6"
-                                Minimum="0.2"
-                                TickFrequency="0.05"
+                                Maximum="0.7"
+                                Minimum="0.15"
+                                TickFrequency="0.01"
                                 Value="{Binding CodeSize}" />
                         <TextBlock Grid.Column="1"
                                    HorizontalAlignment="Right"
@@ -235,6 +248,22 @@
                     <ComboBox DisplayMemberPath="Name"
                               ItemsSource="{Binding Details}"
                               SelectedItem="{Binding SelectedDetail}" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Margin="0,0,0,4"
+                                       Description="{Binding SelectedCodeBlend.Description}"
+                                       Header="Code blending"
+                                       Icon="{ui:SymbolIcon Blur24}"
+                                       IsEnabled="{Binding CanBlendCode}"
+                                       IsStacked="True">
+                    <StackPanel>
+                        <ComboBox DisplayMemberPath="Name"
+                                  ItemsSource="{Binding CodeBlends}"
+                                  SelectedItem="{Binding SelectedCodeBlend}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Style="{StaticResource CaptionTextStyle}"
+                                   Text="Needs Extra fine or Ultra detail and the Whole picture or Subject shape. Every code is still checked to scan; if needed, the code is drawn more solid." />
+                    </StackPanel>
                 </controls:SettingsCard>
             </StackPanel>
         </controls:QrGeneratorView.TopContent>

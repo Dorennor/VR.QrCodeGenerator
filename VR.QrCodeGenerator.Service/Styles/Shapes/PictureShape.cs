@@ -16,7 +16,8 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
         /// <param name="mask">Where the shape is, and where the code goes; the same size as <paramref name="darkness"/>.</param>
         /// <param name="darkness">The picture's darkness [row, column], 0 (white) to 1 (black).</param>
         /// <param name="drawOutline">A dark outline around the shape: on for a subject, off for a whole picture.</param>
-        public PictureShape(MaskShape mask, float[,] darkness, bool drawOutline)
+        /// <param name="codeBlendBias">Let the code take on the picture too, or null for a solid code (see <see cref="IToneShape.CodeBlendBias"/>).</param>
+        public PictureShape(MaskShape mask, float[,] darkness, bool drawOutline, double? codeBlendBias = null)
         {
             _mask = mask ?? throw new ArgumentNullException(nameof(mask));
             ArgumentNullException.ThrowIfNull(darkness);
@@ -24,6 +25,7 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
             _height = darkness.GetLength(0);
             _width = darkness.GetLength(1);
             DrawOutline = drawOutline;
+            CodeBlendBias = codeBlendBias is null ? null : Math.Clamp(codeBlendBias.Value, 0, 1);
 
             _darknessSums = new double[_height + 1, _width + 1];
 
@@ -39,6 +41,8 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
         public IReadOnlyList<ShapePoint> Eyes => _mask.Eyes;
 
         public bool DrawOutline { get; }
+
+        public double? CodeBlendBias { get; }
 
         public ShapePart Classify(double u, double v, int size) => _mask.Classify(u, v, size);
 
