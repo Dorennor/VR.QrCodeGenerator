@@ -2,6 +2,10 @@
 
 A simple WPF desktop app to generate and customize QR codes.
 
+## Download
+
+**[Download the latest version](https://github.com/Dorennor/VR.QrCodeGenerator/releases/latest)**: one `.exe` for Windows 10/11 (64-bit), nothing to install. The exe is not code-signed, so Windows SmartScreen may warn; click **More info → Run anyway**.
+
 ## Features
 
 - Generate QR codes from text or URLs
