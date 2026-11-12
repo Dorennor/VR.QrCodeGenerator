@@ -17,10 +17,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\VR.QrCodeGenerator.ViewModel\VR.QrCodeGenerator.ViewModel.csproj" />
+    <!-- WpfPlatformService: the view models save files and copy to the clipboard as the Windows app does. -->
+    <ProjectReference Include="..\VR.QrCodeGenerator.WPF\VR.QrCodeGenerator.WPF.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="NUnit.Framework" />
+    <Using Include="VR.QrCodeGenerator.WPF.Services" />
   </ItemGroup>
 
 </Project>

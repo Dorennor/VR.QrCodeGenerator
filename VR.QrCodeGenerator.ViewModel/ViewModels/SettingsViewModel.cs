@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -19,6 +17,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         private readonly ISettingsService _settingsService;
         private readonly ILoggingService _loggingService;
         private readonly IDialogService _dialogService;
+        private readonly IPlatformService _platformService;
 
         [ObservableProperty]
         private bool _useCustomPath;
@@ -39,12 +38,13 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [ObservableProperty]
         private string _statusMessage;
 
-        public SettingsViewModel(Settings settings, ISettingsService settingsService, ILoggingService loggingService, IDialogService dialogService)
+        public SettingsViewModel(Settings settings, ISettingsService settingsService, ILoggingService loggingService, IDialogService dialogService, IPlatformService platformService)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+            _platformService = platformService ?? throw new ArgumentNullException(nameof(platformService));
 
             Load();
         }
@@ -54,7 +54,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         /// <summary>
         /// Where QR codes go with the values currently on the page (saved or not).
         /// </summary>
-        public string EffectiveOutputFolder => OutputHelper.GetOutputFolder(new PathsSettings { UseCustomPath = UseCustomPath, OutputPath = OutputPath?.Trim() });
+        public string EffectiveOutputFolder => _platformService.GetOutputFolder(new PathsSettings { UseCustomPath = UseCustomPath, OutputPath = OutputPath?.Trim() });
 
         partial void OnUseCustomPathChanged(bool value) => OnPropertyChanged(nameof(EffectiveOutputFolder));
 
@@ -68,7 +68,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             OutputPath = _settings.PathsSettings?.OutputPath ?? string.Empty;
             LogToFile = _settings.LoggingSettings?.File ?? true;
             DebugLogging = _settings.LoggingSettings?.Debug ?? false;
-            LogToConsole = _settings.LoggingSettings?.Console ?? false;            StatusMessage = null;
+            LogToConsole = _settings.LoggingSettings?.Console ?? false;
+            StatusMessage = null;
         }
 
         [RelayCommand]
@@ -101,7 +102,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
 
             // The rest of the app holds this same instance, so the new values apply without a restart.
             _settings.PathsSettings = updated.PathsSettings;
-            _settings.LoggingSettings = updated.LoggingSettings;            _loggingService.ApplySettings(updated.LoggingSettings);
+            _settings.LoggingSettings = updated.LoggingSettings;
+            _loggingService.ApplySettings(updated.LoggingSettings);
 
             OutputPath = outputPath;
             StatusMessage = $"Settings saved to {SettingsFilePath}";
@@ -109,9 +111,9 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         }
 
         [RelayCommand]
-        public void BrowseOutputPath()
+        public async Task BrowseOutputPathAsync()
         {
-            var selectedPath = _dialogService.OpenFolderDialog(OutputPath);
+            var selectedPath = await _dialogService.OpenFolderDialogAsync(OutputPath);
 
             if (!string.IsNullOrWhiteSpace(selectedPath))
             {
@@ -121,16 +123,13 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         }
 
         [RelayCommand]
-        public void OpenLogsFolder()
+        public async Task OpenLogsFolderAsync()
         {
             var logsFolder = AppPaths.LogsDirectory;
 
             try
             {
-                System.IO.Directory.CreateDirectory(logsFolder);
-
-                // The quotes matter: without them a path with spaces opens the wrong folder.
-                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{logsFolder}\"") { UseShellExecute = true });
+                await _platformService.OpenLogsAsync(logsFolder);
             }
             catch (Exception ex)
             {

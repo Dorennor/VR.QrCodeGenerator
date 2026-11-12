@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="VR.QrCodeGenerator.MAUI.Views.CustomCodesPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:VR.QrCodeGenerator.MAUI.Controls"
+             xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
+             Title="{Binding PageTitle}"
+             x:DataType="vm:CustomCodesViewModel">
+    <controls:QrGeneratorView>
+        <controls:QrGeneratorView.TopContent>
+            <VerticalStackLayout>
+                <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Style" />
+
+                <controls:SettingsCard Description="{Binding SelectedStyle.Description}" Header="Custom style">
+                    <Picker ItemsSource="{Binding AvailableStyles}" SelectedItem="{Binding SelectedStyle}" />
+                </controls:SettingsCard>
+            </VerticalStackLayout>
+        </controls:QrGeneratorView.TopContent>
+    </controls:QrGeneratorView>
+</ContentPage>

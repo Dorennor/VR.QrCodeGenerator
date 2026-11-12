@@ -4,11 +4,11 @@ Updated 2026-11-01. This is the handoff document for a developer or AI assistant
 
 ## What it is
 
-A small portable Windows desktop tool that turns text or a URL into a QR code. The user enters content, adjusts the appearance, clicks Generate, then copies the image or saves it. It was made for a friend, so keep it simple: one window, no accounts, no network access.
+A small QR code tool for Windows (portable .exe) and Android (.apk) that turns text or a URL into a QR code. The user enters content, adjusts the appearance, clicks Generate, then copies the image or saves it. It was made for a friend, so keep it simple: one window, no accounts, no network access.
 
 ## Tech stack
 
-- .NET 10, WPF (`net10.0-windows`). All projects have nullable reference types disabled.
+- .NET 10. Model, Service and ViewModel are plain `net10.0`, shared by both apps. Windows: WPF (`net10.0-windows`). Android: .NET MAUI 11 (`net11.0-android`, the installed MAUI workload), with SkiaSharp.Views.Maui for the drawing sheet and picture template. All projects have nullable reference types disabled.
 - [WPF-UI](https://github.com/lepoco/wpfui) 4.2.0 for the Fluent window, controls and themes.
 - Extended.Wpf.Toolkit 5.0.0, only for `xctk:ColorCanvas`.
 - QRCoder for the QR matrix, SkiaSharp for the final PNG and JPG images.
@@ -18,15 +18,16 @@ A small portable Windows desktop tool that turns text or a URL into a QR code. T
 
 ## Solution layout
 
-Dependencies run in one direction: WPF -> ViewModel -> Service -> Model.
+Dependencies run in one direction: WPF or MAUI -> ViewModel -> Service -> Model. Only the two apps know their platform: the view models use neutral types (`PreviewImage` for images, `System.Drawing.Color` for colors) and reach the platform through `IDialogService` and `IPlatformService`.
 
 | Project | Contents |
 | --- | --- |
 | `VR.QrCodeGenerator.Model` | `QrCodeOptions`, `EnumContentType` (Uri, Text), `EnumImageFormat` (Png, Jpg, Svg), settings classes |
-| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService` (the pipeline), `Generation/` (encoder, matrix helpers), `Styles/` (styles and shapes), `Pictures/QrPicture`, `Rendering/` (PNG/JPG/SVG), `Verification/QrScanVerifier`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
-| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `CustomCodesViewModel`: the same plus a list of styles. `DrawingCodesViewModel`: the same with the user's drawing. `PictureCodesViewModel`: the same with a picture as the template. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
-| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout the four generator pages host), `Controls/DrawingCanvas`, `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/DrawingPage`, `Views/PicturePage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
-| `VR.QrCodeGenerator.Tests` | Service tests (formats, scanning, size limits) and view model tests (command states, error paths) |
+| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService` (the pipeline), `Generation/` (encoder, matrix helpers), `Styles/` (styles and shapes), `Pictures/QrPicture`, `Rendering/` (PNG/JPG/SVG), `Verification/QrScanVerifier`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `IPlatformService` (save, open folder, copy, share; see below), `FileSystemPlatformService` (the Windows behavior), `OutputHelper` (output folder, file names, extensions and MIME types), `UriHelper` (http/https check) |
+| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Share, Save, Reset and Open folder commands. `PreviewImage`: a PNG with its size, which each UI converts to its own image type. `CustomCodesViewModel`: the same plus a list of styles. `DrawingCodesViewModel`: the same with the user's drawing. `PictureCodesViewModel`: the same with a picture as the template. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
+| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout the four generator pages host), `Controls/DrawingCanvas`, `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/DrawingPage`, `Views/PicturePage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `WpfPlatformService` (adds the clipboard), `Converters/` (PreviewImage and Color to WPF types), `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
+| `VR.QrCodeGenerator.MAUI` | The Android app (see "Android app" below): `MauiProgram` (DI), `AppShell` (bottom tabs), `Controls/QrGeneratorView`, `Controls/SettingsCard`, `Controls/CodeAreaView` with `DrawingSurface` and `PicturePlacementView`, `Views/` (the five tabs and `ColorPickerPage`), `Services/` (`AndroidPlatformService`, `MauiDialogService`, `CrashLog`, `SharedPictureInbox`), `Converters/`, `Platforms/Android` (activity, manifest, file provider) |
+| `VR.QrCodeGenerator.Tests` | Service tests (formats, scanning, size limits) and view model tests (command states, error paths). They use `WpfPlatformService`, so they reference the WPF project |
 
 ## How generating works
 
@@ -207,6 +208,23 @@ Conventions:
 - Prefer `ui:` controls. The exception is `xctk:ColorCanvas`, because WPF-UI has no color picker. It sits directly in the flyout rather than using `xctk:ColorPicker`, which would open a second, unthemed popup.
 - The `.csproj` excludes a folder named `Style\` from compilation. Shared styles belong in `Styles\`.
 
+## Android app (VR.QrCodeGenerator.MAUI)
+
+Added 2026-11-12. The same view models and services as Windows, with the layout adapted to a phone. Every feature of the Windows app is there; where Windows relies on a mouse, a desktop folder or the clipboard, Android does the nearest native thing.
+
+- **Layout:** bottom tabs (Generator, Custom, Drawing, Picture, Settings) instead of the navigation pane. Each generator tab is one scrolling column: content, the page's own section (`QrGeneratorView.TopContent`), Generate, the preview with Copy, Share and Reset, then the option cards. The page scrolls to the preview while generating and when the code is ready.
+- **Help:** each card's `HelpText` is an ⓘ button that shows the text in an alert, in place of hover tooltips. `SettingsCard.IsActive` disables the control but keeps the help, like help on disabled cards on Windows.
+- **Drawing (`DrawingSurface`):** the same 360 x 360 sheet and mask as Windows, so a drawing gives the same code. Tools Draw, Erase (removes a whole line) and Move code; pen size 4–24; Undo, Clear, Center. Pinching with two fingers resizes the code with every tool (the mouse wheel on Windows); a second finger cancels the line being drawn.
+- **Picture (`PicturePlacementView`):** the template with the code's square to drag, resize by its corner, pinch, or touch into place. Pictures come from the system picker, or from another app's Share menu (the activity's `SEND image/*` filter, in place of drag and drop), which opens the Picture tab.
+- **Colors:** `ColorPickerPage` (presets, RGB sliders, hex), since Android has no color picker.
+- **Saving (`AndroidPlatformService`):** PNG and JPG go to Pictures/QR Code Generator through MediaStore, so the gallery shows them; SVG goes to Download/QR Code Generator. No storage permission is needed from Android 10, the minimum. A custom output folder is chosen in the system folder picker; its content:// tree URI is stored in `PathsSettings.OutputPath` with lasting access, and files are created through `DocumentsContract`.
+- **Open output folder** ("View saved") opens the last saved code in the viewer, or the gallery before anything is saved: Android has no common way to open a folder.
+- **Copy** puts the PNG on the clipboard as a content:// link from the app's own `FileProvider` (authority `com.vr.qrcodegenerator.qrfiles`, cache folder `clipboard/`). **Share** sends the PNG to another app.
+- **Settings:** custom folder and logging as on Windows, without "Log to console". "Share logs" shares the log files, which live in the app's private storage (`AppPaths` under LocalApplicationData).
+- **Errors:** `CrashLog` writes the catastrophic log, and on the UI thread shows an alert and keeps the app open, as on Windows.
+- **Pickers** show an option's `ToString()`, so the option records return their `Name`.
+- **Not run on a device yet** when this was written: it was built and the APK verified, but no phone or emulator was available.
+
 ## Build, test and publish
 
 ```
@@ -226,6 +244,14 @@ dotnet publish VR.QrCodeGenerator.WPF -p:PublishProfile=FolderProfile
 
 The assembly is named `QR code generator`, so the executable is `QR code generator.exe`.
 
+The Android app needs the Android SDK and a JDK. Visual Studio finds its own; from the command line pass their folders:
+
+```
+dotnet publish VR.QrCodeGenerator.MAUI -c Release -p:AndroidSdkDirectory="<sdk>" -p:JavaSdkDirectory="<jdk>"
+```
+
+This writes `VR.QrCodeGenerator.MAUI\bin\Release\net11.0-android\publish\com.vr.qrcodegenerator-Signed.apk` (about 38 MB, arm64 and x86_64), which installs directly on a phone (allow installing from unknown sources). It is signed with the standard Android debug key (`%LOCALAPPDATA%\Xamarin\Mono for Android\debug.keystore`), created by the first build. An update installs over the old app only when signed with the same key; for Google Play, create a release keystore.
+
 ## Settled decisions
 
 These were the owner's choices on 2026-11-01. Do not change them without asking.
@@ -237,6 +263,5 @@ These were the owner's choices on 2026-11-01. Do not change them without asking.
 
 - **Low contrast is not checked.** Similar or inverted colors can produce a code that will not scan.
 - **Clicking a color swatch while its popup is open does nothing.** OK or a click elsewhere closes it.
-- **Unused code:** `IDialogService.OpenFileDialog` and `SaveFileDialog` (which also ignores its `defaultFileName` argument), the `Serilog.Sinks.Debug` package, and the `Style\` exclusions in the WPF `.csproj`.
+- **Unused code:** the `Serilog.Sinks.Debug` package, and the `Style\` exclusions in the WPF `.csproj`.
 - **Dialogs are standard `MessageBox` windows** and do not follow the theme (ModdingTools does the same).
-- **`ImageHelper` and `OutputHelper` use WPF types** in the Service layer, so that layer is tied to WPF.

@@ -5,5 +5,11 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
     /// <summary>
     /// One entry of the style combobox on the Custom codes page.
     /// </summary>
-    public sealed record QrStyleOption(EnumQrStyle Style, string Name, string Description);
+    public sealed record QrStyleOption(EnumQrStyle Style, string Name, string Description)
+    {
+        /// <summary>
+        /// The name, which is what a list shows when it has no display member (Android pickers).
+        /// </summary>
+        public override string ToString() => Name;
+    }
 }

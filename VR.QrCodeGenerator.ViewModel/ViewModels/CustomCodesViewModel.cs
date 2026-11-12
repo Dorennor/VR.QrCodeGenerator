@@ -20,8 +20,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             new(EnumQrStyle.Dog, "Dog 🐶", "A sitting dog with floppy ears, a muzzle and a wagging tail. The code is its body and still scans.")
         ];
 
-        public CustomCodesViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
-            : base(dialogService, qrCodeGeneratorService, loggingService, settings)
+        public CustomCodesViewModel(IDialogService dialogService, IPlatformService platformService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
+            : base(dialogService, platformService, qrCodeGeneratorService, loggingService, settings)
         {
             SelectedStyle = Styles[0];
         }

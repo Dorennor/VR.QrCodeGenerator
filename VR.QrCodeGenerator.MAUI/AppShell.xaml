@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell x:Class="VR.QrCodeGenerator.MAUI.AppShell"
+       xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:views="clr-namespace:VR.QrCodeGenerator.MAUI.Views"
+       Title="QR Code Generator">
+    <!--  The Windows app's navigation pane as bottom tabs. Pages come from DI (MauiProgram), so each gets its view model.  -->
+    <TabBar>
+        <ShellContent Title="Generator"
+                      ContentTemplate="{DataTemplate views:GeneratorPage}"
+                      Icon="tab_generator.png"
+                      Route="generator" />
+        <ShellContent Title="Custom"
+                      ContentTemplate="{DataTemplate views:CustomCodesPage}"
+                      Icon="tab_custom.png"
+                      Route="custom" />
+        <ShellContent Title="Drawing"
+                      ContentTemplate="{DataTemplate views:DrawingPage}"
+                      Icon="tab_drawing.png"
+                      Route="drawing" />
+        <ShellContent Title="Picture"
+                      ContentTemplate="{DataTemplate views:PicturePage}"
+                      Icon="tab_picture.png"
+                      Route="picture" />
+        <ShellContent Title="Settings"
+                      ContentTemplate="{DataTemplate views:SettingsPage}"
+                      Icon="tab_settings.png"
+                      Route="settings" />
+    </TabBar>
+</Shell>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    The generator layout shared by the Generator, Custom, Drawing and Picture tabs: the Windows QrGeneratorView in one
+    column. What to encode, the page's own section (TopContent), Generate, the result, then the options.
+-->
+<ContentView x:Class="VR.QrCodeGenerator.MAUI.Controls.QrGeneratorView"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:VR.QrCodeGenerator.MAUI.Controls"
+             xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
+             x:DataType="vm:MainViewModel">
+    <ScrollView x:Name="Scroller">
+        <VerticalStackLayout Padding="16,8,16,24">
+            <Label Style="{StaticResource PageDescriptionLabelStyle}" Text="{Binding PageDescription}" />
+
+            <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Content" />
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <Picker x:Name="ContentTypePicker"
+                            Title="Type"
+                            WidthRequest="84"
+                            SelectedItem="{Binding SelectedContentType}" />
+                    <Entry Grid.Column="1"
+                           ClearButtonVisibility="WhileEditing"
+                           Placeholder="Enter a link or text"
+                           ReturnCommand="{Binding GenerateQrCodeCommand}"
+                           ReturnType="Go"
+                           Text="{Binding QrCodeContent}" />
+                </Grid>
+            </Border>
+            <Label Margin="2,0,0,0"
+                   Style="{StaticResource CaptionLabelStyle}"
+                   Text="Uri must be a full http or https link. Text can be anything." />
+
+            <!--  Page-specific section (style picker, drawing, picture); empty on the Generator tab.  -->
+            <ContentView x:Name="TopHost" />
+
+            <Button Margin="0,16,0,0"
+                    Command="{Binding GenerateQrCodeCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Text="Generate" />
+
+            <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Preview" />
+
+            <Border x:Name="PreviewCard"
+                    MinimumHeightRequest="220"
+                    Style="{StaticResource CardBorderStyle}">
+                <Grid>
+                    <Image Aspect="AspectFit"
+                           MaximumHeightRequest="360"
+                           Source="{Binding QrCodeImage, Converter={StaticResource PreviewImageConverter}}" />
+
+                    <!--  Empty state: until a QR code is generated and again after Reset.  -->
+                    <VerticalStackLayout HorizontalOptions="Center"
+                                         IsVisible="{Binding QrCodeImage, Converter={StaticResource IsNullConverter}}"
+                                         VerticalOptions="Center">
+                        <Label HorizontalTextAlignment="Center"
+                               Style="{StaticResource CaptionLabelStyle}"
+                               Text="Your QR code will appear here" />
+                    </VerticalStackLayout>
+
+                    <!--  While a code is generated or saved in the background: dim the old preview and show progress.  -->
+                    <Grid BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}"
+                          IsVisible="{Binding IsBusy}"
+                          Opacity="0.9">
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                             Spacing="12"
+                                             VerticalOptions="Center">
+                            <ActivityIndicator IsRunning="{Binding IsBusy}" />
+                            <Label HorizontalTextAlignment="Center"
+                                   Style="{StaticResource CaptionLabelStyle}"
+                                   Text="Generating and checking that it scans…" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Label Margin="2,2,2,8"
+                   IsVisible="{Binding StatusMessage, Converter={StaticResource IsNotNullConverter}}"
+                   Style="{StaticResource CaptionLabelStyle}"
+                   Text="{Binding StatusMessage}" />
+
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                <Button Command="{Binding CopyToClipboardCommand}" Text="Copy" />
+                <Button Grid.Column="1"
+                        Command="{Binding ShareQrCodeCommand}"
+                        IsVisible="{Binding CanShare}"
+                        Text="Share" />
+                <Button Grid.Column="2"
+                        Command="{Binding ResetQrCodeCommand}"
+                        Text="Reset" />
+            </Grid>
+
+            <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Appearance" />
+
+            <controls:SettingsCard Description="Higher values survive more damage but make the code denser." Header="Error correction">
+                <Picker x:Name="EccPicker" SelectedIndex="{Binding SelectedEccTag, Converter={StaticResource EccTagIndexConverter}}" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Description="Final image size in pixels."
+                                   Header="QR code size"
+                                   IsActive="{Binding UseImageSize}">
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <VerticalStackLayout>
+                        <Label Style="{StaticResource CaptionLabelStyle}" Text="Height" />
+                        <Entry x:Name="HeightEntry"
+                               Keyboard="Numeric"
+                               Text="{Binding QrCodeHeight}"
+                               Unfocused="SizeEntry_OnUnfocused" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1">
+                        <Label Style="{StaticResource CaptionLabelStyle}" Text="Width" />
+                        <Entry x:Name="WidthEntry"
+                               Keyboard="Numeric"
+                               Text="{Binding QrCodeWidth}"
+                               Unfocused="SizeEntry_OnUnfocused" />
+                    </VerticalStackLayout>
+                </Grid>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Description="Every QR square gets exactly this many pixels, for the sharpest result. Replaces Height and Width." Header="Exact pixel size">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <Switch IsToggled="{Binding UseExactPixelSize}" />
+                    <Slider Grid.Column="1"
+                            IsEnabled="{Binding UseExactPixelSize}"
+                            Maximum="50"
+                            Minimum="1"
+                            Value="{Binding SelectedPixelsPerModule}" />
+                    <Label Grid.Column="2"
+                           Style="{StaticResource ValueLabelStyle}"
+                           Text="{Binding SelectedPixelsPerModule, StringFormat='{0} px'}" />
+                </Grid>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="QR code color" IsStacked="False">
+                <Border x:Name="ForegroundSwatch"
+                        BackgroundColor="{Binding SelectedForegroundColor, Converter={StaticResource DrawingColorConverter}}"
+                        SemanticProperties.Description="Choose the QR code color"
+                        Style="{StaticResource ColorSwatchBorderStyle}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="ForegroundSwatch_OnTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Header="Background color" IsStacked="False">
+                <Border x:Name="BackgroundSwatch"
+                        BackgroundColor="{Binding SelectedBackgroundColor, Converter={StaticResource DrawingColorConverter}}"
+                        SemanticProperties.Description="Choose the background color"
+                        Style="{StaticResource ColorSwatchBorderStyle}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="BackgroundSwatch_OnTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+            </controls:SettingsCard>
+
+            <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Output" />
+
+            <controls:SettingsCard Description="Every Generate also saves a file, to Pictures/QR Code Generator unless another folder is chosen in Settings."
+                                   Header="Image format"
+                                   IsStacked="False">
+                <Picker x:Name="FormatPicker"
+                        WidthRequest="96"
+                        SelectedItem="{Binding SelectedImageFormat}" />
+            </controls:SettingsCard>
+
+            <Grid Margin="0,4,0,0"
+                  ColumnDefinitions="*,*"
+                  ColumnSpacing="8">
+                <Button Command="{Binding OpenOutputFolderCommand}" Text="View saved" />
+                <Button Grid.Column="1"
+                        Command="{Binding SaveQrCodeCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Text="Save QR code" />
+            </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

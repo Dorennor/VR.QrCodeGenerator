@@ -27,7 +27,7 @@ namespace VR.QrCodeGenerator.Tests
 
             _settings = new Settings { PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = _folder } };
 
-            _viewModel = new MainViewModel(_dialogs, new QrCodeGeneratorService(), new FakeLoggingService(), _settings);
+            _viewModel = new MainViewModel(_dialogs, new WpfPlatformService(), new QrCodeGeneratorService(), new FakeLoggingService(), _settings);
         }
 
         private Settings _settings;
@@ -37,7 +37,7 @@ namespace VR.QrCodeGenerator.Tests
         {
             // A generator that holds until released: while it runs, the page is busy and Generate cannot start again.
             using var release = new ManualResetEventSlim();
-            var viewModel = new MainViewModel(_dialogs, new BlockingGenerator(release), new FakeLoggingService(), _settings) { QrCodeContent = "https://example.com" };
+            var viewModel = new MainViewModel(_dialogs, new WpfPlatformService(), new BlockingGenerator(release), new FakeLoggingService(), _settings) { QrCodeContent = "https://example.com" };
 
             var generating = viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
@@ -97,7 +97,7 @@ namespace VR.QrCodeGenerator.Tests
         [Test]
         public async Task CustomCodesPage_OffersKurkodAndDrawsAScannableChicken()
         {
-            var custom = new CustomCodesViewModel(_dialogs, new QrCodeGeneratorService(), new FakeLoggingService(), _settings)
+            var custom = new CustomCodesViewModel(_dialogs, new WpfPlatformService(), new QrCodeGeneratorService(), new FakeLoggingService(), _settings)
             {
                 QrCodeContent = "https://example.com",
                 UseExactPixelSize = true,
@@ -192,7 +192,7 @@ namespace VR.QrCodeGenerator.Tests
             _viewModel.SelectedImageFormat = EnumImageFormat.Svg;
             await _viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
 
-            _viewModel.CopyToClipboardCommand.Execute(null);
+            await _viewModel.CopyToClipboardCommand.ExecuteAsync(null);
 
             Assert.Multiple(() =>
             {
@@ -332,19 +332,13 @@ namespace VR.QrCodeGenerator.Tests
             public List<string> Warnings { get; } = [];
             public List<string> Errors { get; } = [];
 
-            public string OpenFolderDialog(string initialDirectory = null) => string.Empty;
+            public Task<string> OpenFolderDialogAsync(string initialDirectory = null) => Task.FromResult(string.Empty);
 
-            public string OpenFileDialog(string filter = null) => string.Empty;
-
-            public string SaveFileDialog(string defaultFileName) => string.Empty;
+            public Task<string> OpenFileDialogAsync(string filter = null) => Task.FromResult(string.Empty);
 
             public void ShowWarnMessageBox(string message) => Warnings.Add(message);
 
             public void ShowErrorMessageBox(string message) => Errors.Add(message);
-
-            public void ShowMessageBox(string message, string title = "Info", MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.Information)
-            {
-            }
         }
 
         private sealed class FakeLoggingService : ILoggingService

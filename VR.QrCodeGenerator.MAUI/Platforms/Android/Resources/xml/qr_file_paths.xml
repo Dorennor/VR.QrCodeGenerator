@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the clipboard file provider (AndroidManifest.xml) may hand out: only the copied QR code. -->
+<paths>
+    <cache-path name="clipboard" path="clipboard/" />
+</paths>

@@ -13,5 +13,10 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             new(3, "Extra fine", "Dots a third of the size of the code's squares."),
             new(4, "Ultra", "Dots a quarter of the size of the code's squares: the most detail.")
         ];
+
+        /// <summary>
+        /// The name, which is what a list shows when it has no display member (Android pickers).
+        /// </summary>
+        public override string ToString() => Name;
     }
 }

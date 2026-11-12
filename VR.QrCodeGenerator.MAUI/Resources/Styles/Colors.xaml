@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--  The Windows app's palette (Windows 11 accent blue, neutral cards) in light and dark. Use with AppThemeBinding.  -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <Color x:Key="AccentLight">#0078D4</Color>
+    <Color x:Key="AccentDark">#4CC2FF</Color>
+    <Color x:Key="OnAccentLight">#FFFFFF</Color>
+    <Color x:Key="OnAccentDark">#000000</Color>
+
+    <Color x:Key="PageBackgroundLight">#F3F3F3</Color>
+    <Color x:Key="PageBackgroundDark">#202020</Color>
+    <Color x:Key="CardBackgroundLight">#FFFFFF</Color>
+    <Color x:Key="CardBackgroundDark">#2B2B2B</Color>
+    <Color x:Key="CardStrokeLight">#E5E5E5</Color>
+    <Color x:Key="CardStrokeDark">#3A3A3A</Color>
+    <Color x:Key="ControlBackgroundLight">#FBFBFB</Color>
+    <Color x:Key="ControlBackgroundDark">#373737</Color>
+
+    <Color x:Key="TextPrimaryLight">#1A1A1A</Color>
+    <Color x:Key="TextPrimaryDark">#FFFFFF</Color>
+    <Color x:Key="TextSecondaryLight">#5F5F5F</Color>
+    <Color x:Key="TextSecondaryDark">#C5C5C5</Color>
+    <Color x:Key="TextTertiaryLight">#8A8A8A</Color>
+    <Color x:Key="TextTertiaryDark">#9A9A9A</Color>
+
+    <!--  The drawing sheet and picture template are white in both themes, like on Windows.  -->
+    <Color x:Key="Paper">#FFFFFF</Color>
+</ResourceDictionary>

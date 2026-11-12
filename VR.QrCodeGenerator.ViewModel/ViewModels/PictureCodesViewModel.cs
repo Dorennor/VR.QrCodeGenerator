@@ -1,7 +1,6 @@
 using System.ComponentModel;
+using System.Drawing;
 using System.IO;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,7 +8,6 @@ using CommunityToolkit.Mvvm.Input;
 using SkiaSharp;
 
 using VR.QrCodeGenerator.Model.Models.Settings;
-using VR.QrCodeGenerator.Service.Helpers;
 using VR.QrCodeGenerator.Service.Interfaces;
 using VR.QrCodeGenerator.Service.Pictures;
 using VR.QrCodeGenerator.Service.Styles;
@@ -51,7 +49,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(HasPicture))]
         [NotifyCanExecuteChangedFor(nameof(RemovePictureCommand))]
-        private BitmapSource _templatePreview;
+        private PreviewImage _templatePreview;
 
         [ObservableProperty]
         private string _pictureName;
@@ -122,8 +120,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         /// </summary>
         public bool CanBlendCode => UsesTones && SelectedDetail.CellsPerModule >= 3;
 
-        public PictureCodesViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
-            : base(dialogService, qrCodeGeneratorService, loggingService, settings)
+        public PictureCodesViewModel(IDialogService dialogService, IPlatformService platformService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
+            : base(dialogService, platformService, qrCodeGeneratorService, loggingService, settings)
         {
             _dialogService = dialogService;
             _loggingService = loggingService;
@@ -199,9 +197,9 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         }
 
         [RelayCommand]
-        public void ChoosePicture()
+        public async Task ChoosePictureAsync()
         {
-            var path = _dialogService.OpenFileDialog(QrPicture.FileFilter);
+            var path = await _dialogService.OpenFileDialogAsync(QrPicture.FileFilter);
 
             if (!string.IsNullOrWhiteSpace(path))
                 LoadPicture(path);
@@ -260,14 +258,20 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
 
             _template = _picture.ToTemplate(SelectedSource.Source, ink, ToSkColor(SelectedBackgroundColor), Sensitivity);
             _darkness = UsesTones ? _picture.ToDarkness(Brightness, Contrast) : null;
-            TemplatePreview = ImageHelper.LoadBitmap(QrPicture.TemplatePreviewPng(_template, _darkness, ink));
+            TemplatePreview = PreviewImage.FromPng(QrPicture.TemplatePreviewPng(_template, _darkness, ink));
         }
 
         private static SKColor ToSkColor(Color color) => new SKColor(color.R, color.G, color.B);
 
-        public sealed record TemplateSourceOption(PictureTemplateSource Source, string Name, string Description);
+        public sealed record TemplateSourceOption(PictureTemplateSource Source, string Name, string Description)
+        {
+            public override string ToString() => Name;
+        }
 
         /// <param name="Bias">How far a blended module's border leans to its own color, or null for a solid code.</param>
-        public sealed record CodeBlendOption(double? Bias, string Name, string Description);
+        public sealed record CodeBlendOption(double? Bias, string Name, string Description)
+        {
+            public override string ToString() => Name;
+        }
     }
 }

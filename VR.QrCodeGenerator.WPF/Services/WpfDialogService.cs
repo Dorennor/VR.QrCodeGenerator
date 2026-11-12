@@ -8,7 +8,7 @@ namespace VR.QrCodeGenerator.WPF.Services
 {
     public class WpfDialogService : IDialogService
     {
-        public string OpenFolderDialog(string initialDirectory = null)
+        public Task<string> OpenFolderDialogAsync(string initialDirectory = null)
         {
             var openFolderDialog = new OpenFolderDialog();
 
@@ -16,13 +16,10 @@ namespace VR.QrCodeGenerator.WPF.Services
                 openFolderDialog.InitialDirectory = initialDirectory;
             var result = openFolderDialog.ShowDialog();
 
-            if (result.HasValue && result.Value)
-                return openFolderDialog.FolderName;
-            else
-                return string.Empty;
+            return Task.FromResult(result == true ? openFolderDialog.FolderName : string.Empty);
         }
 
-        public string OpenFileDialog(string filter = null)
+        public Task<string> OpenFileDialogAsync(string filter = null)
         {
             var openFileDialog = new OpenFileDialog();
 
@@ -30,36 +27,17 @@ namespace VR.QrCodeGenerator.WPF.Services
                 openFileDialog.Filter = filter + "|All files|*.*";
             var result = openFileDialog.ShowDialog();
 
-            if (result.HasValue && result.Value)
-                return openFileDialog.FileName;
-            else
-                return string.Empty;
-        }
-
-        public string SaveFileDialog(string defaultFileName)
-        {
-            var saveFileDialog = new SaveFileDialog();
-            var result = saveFileDialog.ShowDialog();
-
-            if (result.HasValue && result.Value)
-                return saveFileDialog.FileName;
-            else
-                return string.Empty;
+            return Task.FromResult(result == true ? openFileDialog.FileName : string.Empty);
         }
 
         public void ShowWarnMessageBox(string message)
         {
-            ShowMessageBox(message, "Warn", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(message, "Warn", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         public void ShowErrorMessageBox(string message)
         {
-            ShowMessageBox(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-
-        public void ShowMessageBox(string message, string title = "Info", MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.Information)
-        {
-            MessageBox.Show(message, title, buttons, icon);
+            MessageBox.Show(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }

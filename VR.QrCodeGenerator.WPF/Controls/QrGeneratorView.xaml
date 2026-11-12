@@ -83,7 +83,7 @@
                     <Image x:Name="QrCodeImage"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
-                           Source="{Binding QrCodeImage}"
+                           Source="{Binding QrCodeImage, Converter={StaticResource PreviewImageConverter}}"
                            Stretch="Uniform"
                            StretchDirection="DownOnly" />
 
@@ -262,7 +262,7 @@
                         <ToggleButton x:Name="FgColorButton" ToolTip="Choose the QR code color">
                             <Border Style="{StaticResource ColorSwatchBorderStyle}">
                                 <Border.Background>
-                                    <SolidColorBrush Color="{Binding SelectedForegroundColor}" />
+                                    <SolidColorBrush Color="{Binding SelectedForegroundColor, Converter={StaticResource DrawingColorConverter}}" />
                                 </Border.Background>
                             </Border>
                         </ToggleButton>
@@ -275,7 +275,7 @@
                                 <StackPanel>
                                     <xctk:ColorCanvas Background="Transparent"
                                                       BorderThickness="0"
-                                                      SelectedColor="{Binding SelectedForegroundColor, Mode=TwoWay}"
+                                                      SelectedColor="{Binding SelectedForegroundColor, Converter={StaticResource DrawingColorConverter}, Mode=TwoWay}"
                                                       UsingAlphaChannel="False" />
                                     <ui:Button x:Name="FgColorPickerClose"
                                                Margin="0,8,0,0"
@@ -294,7 +294,7 @@
                         <ToggleButton x:Name="BgColorButton" ToolTip="Choose the background color">
                             <Border Style="{StaticResource ColorSwatchBorderStyle}">
                                 <Border.Background>
-                                    <SolidColorBrush Color="{Binding SelectedBackgroundColor}" />
+                                    <SolidColorBrush Color="{Binding SelectedBackgroundColor, Converter={StaticResource DrawingColorConverter}}" />
                                 </Border.Background>
                             </Border>
                         </ToggleButton>
@@ -307,7 +307,7 @@
                                 <StackPanel>
                                     <xctk:ColorCanvas Background="Transparent"
                                                       BorderThickness="0"
-                                                      SelectedColor="{Binding SelectedBackgroundColor, Mode=TwoWay}"
+                                                      SelectedColor="{Binding SelectedBackgroundColor, Converter={StaticResource DrawingColorConverter}, Mode=TwoWay}"
                                                       UsingAlphaChannel="False" />
                                     <ui:Button x:Name="BgColorPickerClose"
                                                Margin="0,8,0,0"

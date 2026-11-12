@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        No permissions: codes go to Pictures through MediaStore (no storage permission from Android 10), pictures come
+        from the system picker, and the app never uses the network.
+    -->
+    <application android:allowBackup="true"
+                 android:icon="@mipmap/appicon"
+                 android:roundIcon="@mipmap/appicon_round"
+                 android:supportsRtl="true">
+
+        <!-- Copy to clipboard: the PNG is put on the clipboard as a content:// link to this app's cache. -->
+        <provider android:name="androidx.core.content.FileProvider"
+                  android:authorities="com.vr.qrcodegenerator.qrfiles"
+                  android:exported="false"
+                  android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                       android:resource="@xml/qr_file_paths" />
+        </provider>
+    </application>
+</manifest>

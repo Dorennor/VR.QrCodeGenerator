@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="VR.QrCodeGenerator.MAUI.Views.GeneratorPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:VR.QrCodeGenerator.MAUI.Controls"
+             xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
+             Title="{Binding PageTitle}"
+             x:DataType="vm:MainViewModel">
+    <controls:QrGeneratorView />
+</ContentPage>

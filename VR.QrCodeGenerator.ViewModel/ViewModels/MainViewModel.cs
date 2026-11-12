@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+﻿using System.Drawing;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -57,18 +55,20 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [NotifyCanExecuteChangedFor(nameof(CopyToClipboardCommand))]
         [NotifyCanExecuteChangedFor(nameof(SaveQrCodeCommand))]
         [NotifyCanExecuteChangedFor(nameof(ResetQrCodeCommand))]
-        private BitmapSource _qrCodeImage;
+        [NotifyCanExecuteChangedFor(nameof(ShareQrCodeCommand))]
+        private PreviewImage _qrCodeImage;
 
         [ObservableProperty]
         private string _statusMessage;
 
         private readonly IDialogService _dialogService;
+        private readonly IPlatformService _platformService;
         private readonly IQrCodeGeneratorService _qrCodeGeneratorService;
         private readonly ILoggingService _loggingService;
         private readonly Settings _settings;
 
         // Read on every use so a folder changed on the Settings page applies right away.
-        private string OutputFolder => OutputHelper.GetOutputFolder(_settings?.PathsSettings);
+        private string OutputFolder => _platformService.GetOutputFolder(_settings?.PathsSettings);
 
         // What the preview shows. Saving uses these, so settings changed since Generate do not affect the saved file.
         private string _generatedContent;
@@ -77,9 +77,10 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         private IQrStyle _generatedStyle;
         private byte[] _generatedPng;
 
-        public MainViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
+        public MainViewModel(IDialogService dialogService, IPlatformService platformService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
         {
             _dialogService = dialogService;
+            _platformService = platformService;
             _qrCodeGeneratorService = qrCodeGeneratorService;
             _loggingService = loggingService;
             _settings = settings;
@@ -99,6 +100,11 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         public bool ShowsStyles => AvailableStyles.Count > 0;
 
         /// <summary>
+        /// Whether this platform can send the code to another app (Android); the page shows Share only then.
+        /// </summary>
+        public bool CanShare => _platformService.CanShare;
+
+        /// <summary>
         /// Used from the next Generate on; null means the classic QR code.
         /// </summary>
         [ObservableProperty]
@@ -115,8 +121,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             SelectedPixelsPerModule = 20;
             QrCodeContent = string.Empty;
             SelectedEccTag = "Q";
-            SelectedForegroundColor = new SolidColorBrush(Colors.Black).Color;
-            SelectedBackgroundColor = new SolidColorBrush(Colors.White).Color;
+            SelectedForegroundColor = Color.FromArgb(0, 0, 0);
+            SelectedBackgroundColor = Color.FromArgb(255, 255, 255);
             QrCodeHeight = 500;
             QrCodeWidth = 500;
         }
@@ -144,6 +150,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [NotifyCanExecuteChangedFor(nameof(CopyToClipboardCommand))]
         [NotifyCanExecuteChangedFor(nameof(SaveQrCodeCommand))]
         [NotifyCanExecuteChangedFor(nameof(ResetQrCodeCommand))]
+        [NotifyCanExecuteChangedFor(nameof(ShareQrCodeCommand))]
         private bool _isBusy;
 
         /// <summary>
@@ -192,7 +199,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 var style = CreateStyle();
                 var png = await Task.Run(() => _qrCodeGeneratorService.Generate(content, options, style));
 
-                QrCodeImage = ImageHelper.LoadBitmap(png);
+                QrCodeImage = PreviewImage.FromPng(png);
                 _generatedPng = png;
                 _generatedContent = content;
                 _generatedOptions = options;
@@ -227,11 +234,11 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(HasQrCode))]
-        public void CopyToClipboard()
+        public async Task CopyToClipboardAsync()
         {
             try
             {
-                OutputHelper.CopyQrToClipboard(_generatedPng);
+                await _platformService.CopyImageAsync(_generatedPng);
                 StatusMessage = "Copied to clipboard";
             }
             catch (Exception ex)
@@ -241,17 +248,34 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             }
         }
 
+        /// <summary>
+        /// Sends the preview (PNG) to another app, such as a messenger. Only where <see cref="CanShare"/>.
+        /// </summary>
+        [RelayCommand(CanExecute = nameof(HasQrCode))]
+        public async Task ShareQrCodeAsync()
+        {
+            try
+            {
+                await _platformService.ShareImageAsync(_generatedPng);
+            }
+            catch (Exception ex)
+            {
+                _loggingService.Error("Error during sharing qr code.", ex);
+                _dialogService.ShowErrorMessageBox("Could not share the QR code.");
+            }
+        }
+
         [RelayCommand(CanExecute = nameof(HasQrCode))]
         public async Task SaveQrCodeAsync()
         {
-            var (content, options, style, format, folder) = (_generatedContent, _generatedOptions, _generatedStyle, SelectedImageFormat, OutputFolder);
+            var (content, options, style, format, paths, folder) = (_generatedContent, _generatedOptions, _generatedStyle, SelectedImageFormat, _settings?.PathsSettings, OutputFolder);
 
             IsBusy = true;
 
             try
             {
                 // The generator reuses the drawing it just made, so this is mostly rendering and writing the file.
-                var path = await Task.Run(() => OutputHelper.SaveToFile(_qrCodeGeneratorService.Generate(content, options, style, format), folder, format));
+                var path = await Task.Run(() => _platformService.SaveToOutputFolder(_qrCodeGeneratorService.Generate(content, options, style, format), format, paths));
 
                 StatusMessage = $"Saved {QrCodeImage.PixelWidth} x {QrCodeImage.PixelHeight} px to {path}";
             }
@@ -279,14 +303,11 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         }
 
         [RelayCommand]
-        public void OpenOutputFolder()
+        public async Task OpenOutputFolderAsync()
         {
             try
             {
-                System.IO.Directory.CreateDirectory(OutputFolder);
-
-                // The quotes matter: without them a path with spaces opens the wrong folder.
-                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{OutputFolder}\"") { UseShellExecute = true });
+                await _platformService.OpenOutputFolderAsync(_settings?.PathsSettings);
             }
             catch (Exception ex)
             {

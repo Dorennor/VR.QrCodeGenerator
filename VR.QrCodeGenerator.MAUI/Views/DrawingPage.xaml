@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="VR.QrCodeGenerator.MAUI.Views.DrawingPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:VR.QrCodeGenerator.MAUI.Controls"
+             xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
+             Title="{Binding PageTitle}"
+             x:DataType="vm:DrawingCodesViewModel">
+    <controls:QrGeneratorView>
+        <controls:QrGeneratorView.TopContent>
+            <VerticalStackLayout>
+                <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Drawing" />
+
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <VerticalStackLayout Spacing="10">
+                        <!--  Tools: what one finger does on the sheet.  -->
+                        <Grid ColumnDefinitions="*,*,*,Auto" ColumnSpacing="6">
+                            <Button x:Name="DrawToolButton"
+                                    Clicked="Tool_OnClicked"
+                                    Text="Draw" />
+                            <Button x:Name="EraseToolButton"
+                                    Grid.Column="1"
+                                    Clicked="Tool_OnClicked"
+                                    Text="Erase" />
+                            <Button x:Name="MoveToolButton"
+                                    Grid.Column="2"
+                                    Clicked="Tool_OnClicked"
+                                    Text="Move code" />
+                            <Label Grid.Column="3"
+                                   Padding="8,0,0,0"
+                                   FontSize="18"
+                                   SemanticProperties.Description="Help"
+                                   Text="ⓘ"
+                                   TextColor="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}"
+                                   VerticalOptions="Center">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="ToolsHelp_OnTapped" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </Grid>
+
+                        <!--  The paper is white in both themes: the drawing is black ink, like the code.  -->
+                        <Border Padding="0" Style="{StaticResource PaperBorderStyle}">
+                            <controls:DrawingSurface x:Name="Surface"
+                                                     CodeCenter="{Binding CodeCenter}"
+                                                     CodeSize="{Binding CodeSize}"
+                                                     Drawing="{Binding Drawing}"
+                                                     MaxCodeSize="{x:Static vm:DrawingCodesViewModel.MaxCodeSize}"
+                                                     MinCodeSize="{x:Static vm:DrawingCodesViewModel.MinCodeSize}" />
+                        </Border>
+
+                        <Label Style="{StaticResource CaptionLabelStyle}" Text="Pinch with two fingers to resize the code with any tool." />
+
+                        <!--  Pen size.  -->
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Label Text="Pen size" VerticalOptions="Center" />
+                            <Slider x:Name="PenSizeSlider"
+                                    Grid.Column="1"
+                                    Maximum="24"
+                                    Minimum="4"
+                                    ValueChanged="PenSize_OnValueChanged"
+                                    Value="10" />
+                            <Label x:Name="PenSizeLabel"
+                                   Grid.Column="2"
+                                   Style="{StaticResource ValueLabelStyle}"
+                                   Text="10" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                            <Button Clicked="Undo_OnClicked" Text="Undo" />
+                            <Button Grid.Column="1"
+                                    Clicked="Clear_OnClicked"
+                                    Text="Clear" />
+                            <Button Grid.Column="2"
+                                    Command="{Binding CenterCodeCommand}"
+                                    Text="Center" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <controls:SettingsCard Description="The code's share of the sheet. Or pinch the sheet, or use Move code and drag the white corner."
+                                       Header="Code size"
+                                       HelpText="How big the QR code is compared to your drawing.&#x0a;&#x0a;A smaller code leaves more room for the drawing. But if you print the image small, a tiny code becomes hard for a phone to read, so keep it big enough to see its little squares clearly.&#x0a;&#x0a;You can also resize the blue square on the sheet: pinch it with two fingers, or choose Move code and drag its white corner.">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Slider Maximum="{x:Static vm:DrawingCodesViewModel.MaxCodeSize}"
+                                Minimum="{x:Static vm:DrawingCodesViewModel.MinCodeSize}"
+                                Value="{Binding CodeSize, Converter={StaticResource SnapConverter}, ConverterParameter=0.01}" />
+                        <Label Grid.Column="1"
+                               Style="{StaticResource ValueLabelStyle}"
+                               Text="{Binding CodeSize, StringFormat='{0:P0}'}" />
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Description="{Binding SelectedDetail.Description}"
+                                       Header="Detail"
+                                       HelpText="How small the squares that draw your lines and shapes are.&#x0a;&#x0a;Smaller squares give smoother lines and curves. Normal gives a chunky, pixel-art look, like the chicken on the Custom tab.&#x0a;&#x0a;The QR code itself works the same at every setting.">
+                    <Picker ItemsSource="{x:Static vm:DrawingCodesViewModel.Details}" SelectedItem="{Binding SelectedDetail}" />
+                </controls:SettingsCard>
+            </VerticalStackLayout>
+        </controls:QrGeneratorView.TopContent>
+    </controls:QrGeneratorView>
+</ContentPage>

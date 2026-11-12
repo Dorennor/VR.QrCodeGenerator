@@ -1,8 +1,4 @@
 ﻿using System.IO;
-using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 using VR.QrCodeGenerator.Model.Enums;
 using VR.QrCodeGenerator.Model.Models.Settings;
@@ -26,36 +22,19 @@ namespace VR.QrCodeGenerator.Service.Helpers
         {
             Directory.CreateDirectory(outputFolder);
 
-            var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid()}{GetExtension(imageFormat)}";
-            var fullPath = Path.Combine(outputFolder, fileName);
+            var fullPath = Path.Combine(outputFolder, CreateFileName(imageFormat));
 
             File.WriteAllBytes(fullPath, fileContent);
 
             return fullPath;
         }
 
-        public static void CopyQrToClipboard(byte[] pngData)
-        {
-            var convertedBitmap = new FormatConvertedBitmap(ImageHelper.LoadBitmap(pngData), PixelFormats.Bgra32, null, 0);
+        /// <summary>
+        /// A new, unique file name such as 20261112_215520_&lt;guid&gt;.png.
+        /// </summary>
+        public static string CreateFileName(EnumImageFormat imageFormat) => $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid()}{GetExtension(imageFormat)}";
 
-            for (int i = 0; i < 3; i++)
-            {
-                try
-                {
-                    Clipboard.SetImage(convertedBitmap);
-                    return;
-                }
-                catch (COMException)
-                {
-                    if (i == 2)
-                        throw;
-
-                    Thread.Sleep(50);
-                }
-            }
-        }
-
-        private static string GetExtension(EnumImageFormat imageFormat)
+        public static string GetExtension(EnumImageFormat imageFormat)
         {
             switch (imageFormat)
             {
@@ -67,6 +46,24 @@ namespace VR.QrCodeGenerator.Service.Helpers
 
                 case EnumImageFormat.Svg:
                     return ".svg";
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(imageFormat), "Image type type is not supported!");
+            }
+        }
+
+        public static string GetMimeType(EnumImageFormat imageFormat)
+        {
+            switch (imageFormat)
+            {
+                case EnumImageFormat.Jpg:
+                    return "image/jpeg";
+
+                case EnumImageFormat.Png:
+                    return "image/png";
+
+                case EnumImageFormat.Svg:
+                    return "image/svg+xml";
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(imageFormat), "Image type type is not supported!");

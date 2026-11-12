@@ -54,6 +54,7 @@ namespace VR.QrCodeGenerator.WPF
             services.AddSingleton<ILoggingService, LoggingService>();
             services.AddSingleton<ISettingsService>(_settingsService);
             services.AddSingleton<IDialogService, WpfDialogService>();
+            services.AddSingleton<IPlatformService, WpfPlatformService>();
             services.AddSingleton<IQrCodeGeneratorService, QrCodeGeneratorService>();
 
             services.AddSingleton<MainViewModel>();

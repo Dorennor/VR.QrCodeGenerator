@@ -51,8 +51,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [ObservableProperty]
         private DetailOption _selectedDetail = DetailOption.All[1];
 
-        public DrawingCodesViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
-            : base(dialogService, qrCodeGeneratorService, loggingService, settings)
+        public DrawingCodesViewModel(IDialogService dialogService, IPlatformService platformService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
+            : base(dialogService, platformService, qrCodeGeneratorService, loggingService, settings)
         {
         }
 

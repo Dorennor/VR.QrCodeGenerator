@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="VR.QrCodeGenerator.MAUI.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:VR.QrCodeGenerator.MAUI.Controls"
+             xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
+             Title="Settings"
+             x:DataType="vm:SettingsViewModel">
+    <ScrollView>
+        <VerticalStackLayout Padding="16,8,16,24">
+            <Label Style="{StaticResource PageDescriptionLabelStyle}" Text="Output folder and logging. Saved on this phone and applied right away." />
+
+            <Label Margin="2,4,2,0"
+                   IsVisible="{Binding StatusMessage, Converter={StaticResource IsNotNullConverter}}"
+                   Style="{StaticResource CaptionLabelStyle}"
+                   Text="{Binding StatusMessage}" />
+
+            <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Output" />
+
+            <controls:SettingsCard Description="Off: QR codes are saved to Pictures/QR Code Generator, where your gallery shows them (SVG files to Download/QR Code Generator)."
+                                   Header="Use a custom output folder"
+                                   IsStacked="False">
+                <Switch IsToggled="{Binding UseCustomPath}" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Description="A folder on this phone or a connected drive, chosen in the system folder picker."
+                                   Header="Output folder"
+                                   IsActive="{Binding UseCustomPath}">
+                <Button Command="{Binding BrowseOutputPathCommand}" Text="Choose folder" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Description="{Binding EffectiveOutputFolder}" Header="QR codes will be saved to" />
+
+            <Label Style="{StaticResource SectionHeaderLabelStyle}" Text="Logging" />
+
+            <controls:SettingsCard Description="Keeps a daily log file in the app's own storage. Share it when reporting a problem."
+                                   Header="Log to file"
+                                   IsStacked="False">
+                <Switch IsToggled="{Binding LogToFile}" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard Description="Also logs debug details. Useful when reporting a problem."
+                                   Header="Detailed logging"
+                                   IsStacked="False">
+                <Switch IsToggled="{Binding DebugLogging}" />
+            </controls:SettingsCard>
+
+            <Button Margin="0,4,0,0"
+                    Command="{Binding OpenLogsFolderCommand}"
+                    Text="Share logs" />
+
+            <Grid Margin="0,24,0,0"
+                  ColumnDefinitions="*,*"
+                  ColumnSpacing="8">
+                <Button Command="{Binding LoadCommand}" Text="Discard changes" />
+                <Button Grid.Column="1"
+                        Command="{Binding SaveCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Text="Save settings" />
+            </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

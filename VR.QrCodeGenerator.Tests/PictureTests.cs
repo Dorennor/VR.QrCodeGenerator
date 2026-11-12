@@ -271,7 +271,7 @@ namespace VR.QrCodeGenerator.Tests
 
             try
             {
-                var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
+                var viewModel = new PictureCodesViewModel(new RecordingDialogService(), new WpfPlatformService(), _service, new NullLoggingService(), new Settings());
                 viewModel.LoadPicture(pictureFile);
                 viewModel.CodeCenter = moved;
                 viewModel.CenterCodeCommand.Execute(null);
@@ -564,7 +564,7 @@ namespace VR.QrCodeGenerator.Tests
         [Test]
         public void ViewModel_DefaultsToTheWholePictureAtUltraDetail()
         {
-            var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
+            var viewModel = new PictureCodesViewModel(new RecordingDialogService(), new WpfPlatformService(), _service, new NullLoggingService(), new Settings());
 
             Assert.Multiple(() =>
             {
@@ -694,7 +694,7 @@ namespace VR.QrCodeGenerator.Tests
         [Test]
         public void ViewModel_OffersBlendingOnlyWhereItCanWork()
         {
-            var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
+            var viewModel = new PictureCodesViewModel(new RecordingDialogService(), new WpfPlatformService(), _service, new NullLoggingService(), new Settings());
             var defaults = (viewModel.CanBlendCode, viewModel.SelectedCodeBlend.Name);
 
             viewModel.SelectedDetail = PictureCodesViewModel.Details.Single(detail => detail.CellsPerModule == 2);
@@ -730,7 +730,7 @@ namespace VR.QrCodeGenerator.Tests
             {
                 var dialogs = new RecordingDialogService();
                 var settings = new Settings { PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = Path.Combine(folder, "out") } };
-                var viewModel = new PictureCodesViewModel(dialogs, _service, new NullLoggingService(), settings)
+                var viewModel = new PictureCodesViewModel(dialogs, new WpfPlatformService(), _service, new NullLoggingService(), settings)
                 {
                     QrCodeContent = Url,
                     UseExactPixelSize = true,
@@ -748,7 +748,7 @@ namespace VR.QrCodeGenerator.Tests
                 using var image = SKBitmap.Decode(saved);
 
                 // The ink follows the QR code color, so a new color makes a new template.
-                viewModel.SelectedForegroundColor = System.Windows.Media.Colors.DarkRed;
+                viewModel.SelectedForegroundColor = System.Drawing.Color.DarkRed;
 
                 Assert.Multiple(() =>
                 {
@@ -778,7 +778,7 @@ namespace VR.QrCodeGenerator.Tests
             try
             {
                 var dialogs = new RecordingDialogService();
-                var viewModel = new PictureCodesViewModel(dialogs, _service, new NullLoggingService(), new Settings());
+                var viewModel = new PictureCodesViewModel(dialogs, new WpfPlatformService(), _service, new NullLoggingService(), new Settings());
 
                 viewModel.LoadPicture(file);
 
@@ -800,19 +800,13 @@ namespace VR.QrCodeGenerator.Tests
 
             public List<string> Errors { get; } = [];
 
-            public string OpenFolderDialog(string initialDirectory = null) => string.Empty;
+            public Task<string> OpenFolderDialogAsync(string initialDirectory = null) => Task.FromResult(string.Empty);
 
-            public string OpenFileDialog(string filter = null) => string.Empty;
-
-            public string SaveFileDialog(string defaultFileName) => string.Empty;
+            public Task<string> OpenFileDialogAsync(string filter = null) => Task.FromResult(string.Empty);
 
             public void ShowWarnMessageBox(string message) => Warnings.Add(message);
 
             public void ShowErrorMessageBox(string message) => Errors.Add(message);
-
-            public void ShowMessageBox(string message, string title = "Info", System.Windows.MessageBoxButton buttons = System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage icon = System.Windows.MessageBoxImage.Information)
-            {
-            }
         }
 
         private sealed class NullLoggingService : ILoggingService

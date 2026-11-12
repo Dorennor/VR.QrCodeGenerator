@@ -49,7 +49,7 @@
                                     </Viewbox.Style>
                                     <Grid Width="{Binding TemplateWidth}" Height="{Binding TemplateHeight}">
                                         <Image RenderOptions.BitmapScalingMode="NearestNeighbor"
-                                               Source="{Binding TemplatePreview}"
+                                               Source="{Binding TemplatePreview, Converter={StaticResource PreviewImageConverter}}"
                                                Stretch="Fill" />
                                         <controls:CodePlacementOverlay AreaHeight="{Binding TemplateHeight}"
                                                                        AreaWidth="{Binding TemplateWidth}"

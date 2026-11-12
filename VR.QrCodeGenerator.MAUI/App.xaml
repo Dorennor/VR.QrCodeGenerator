@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application x:Class="VR.QrCodeGenerator.MAUI.App"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:converters="clr-namespace:VR.QrCodeGenerator.MAUI.Converters"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!--  The view models are platform-neutral: these turn their images and colors into MAUI ones.  -->
+            <converters:PreviewImageConverter x:Key="PreviewImageConverter" />
+            <converters:DrawingColorConverter x:Key="DrawingColorConverter" />
+            <converters:EccTagIndexConverter x:Key="EccTagIndexConverter" />
+            <converters:SnapConverter x:Key="SnapConverter" />
+            <converters:IsNullConverter x:Key="IsNullConverter" />
+            <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
+            <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

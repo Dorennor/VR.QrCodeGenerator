@@ -199,7 +199,7 @@ namespace VR.QrCodeGenerator.Tests
                 try
                 {
                     var settings = new Settings { PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = folder } };
-                    var viewModel = new DrawingCodesViewModel(new NullDialogService(), _service, new NullLoggingService(), settings)
+                    var viewModel = new DrawingCodesViewModel(new NullDialogService(), new WpfPlatformService(), _service, new NullLoggingService(), settings)
                     {
                         QrCodeContent = Url,
                         UseExactPixelSize = true,
@@ -235,7 +235,7 @@ namespace VR.QrCodeGenerator.Tests
 
             var left = await GenerateWithCodeAt(0.15);
             var right = await GenerateWithCodeAt(0.85);
-            var defaultDetail = new DrawingCodesViewModel(new NullDialogService(), _service, new NullLoggingService(), new Settings()).SelectedDetail;
+            var defaultDetail = new DrawingCodesViewModel(new NullDialogService(), new WpfPlatformService(), _service, new NullLoggingService(), new Settings()).SelectedDetail;
 
             Assert.Multiple(() =>
             {
@@ -254,7 +254,7 @@ namespace VR.QrCodeGenerator.Tests
             try
             {
                 var settings = new Settings { PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = folder } };
-                var viewModel = new DrawingCodesViewModel(new NullDialogService(), _service, new NullLoggingService(), settings)
+                var viewModel = new DrawingCodesViewModel(new NullDialogService(), new WpfPlatformService(), _service, new NullLoggingService(), settings)
                 {
                     QrCodeContent = Url,
                     UseExactPixelSize = true,
@@ -288,19 +288,13 @@ namespace VR.QrCodeGenerator.Tests
 
         private sealed class NullDialogService : IDialogService
         {
-            public string OpenFolderDialog(string initialDirectory = null) => string.Empty;
+            public Task<string> OpenFolderDialogAsync(string initialDirectory = null) => Task.FromResult(string.Empty);
 
-            public string OpenFileDialog(string filter = null) => string.Empty;
-
-            public string SaveFileDialog(string defaultFileName) => string.Empty;
+            public Task<string> OpenFileDialogAsync(string filter = null) => Task.FromResult(string.Empty);
 
             public void ShowWarnMessageBox(string message) => Assert.Fail($"Unexpected warning: {message}");
 
             public void ShowErrorMessageBox(string message) => Assert.Fail($"Unexpected error: {message}");
-
-            public void ShowMessageBox(string message, string title = "Info", System.Windows.MessageBoxButton buttons = System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage icon = System.Windows.MessageBoxImage.Information)
-            {
-            }
         }
 
         private sealed class NullLoggingService : ILoggingService
