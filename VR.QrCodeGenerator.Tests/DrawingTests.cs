@@ -24,7 +24,7 @@ namespace VR.QrCodeGenerator.Tests
         // The canvas size and pen of the Drawing page.
         private const int CanvasSize = 360;
         private const double PenRadius = 5;
-        private const double CodeFraction = DrawingCodesViewModel.CodeFraction;
+        private const double CodeFraction = DrawingCodesViewModel.DefaultCodeSize;
 
         private readonly QrCodeGeneratorService _service = new QrCodeGeneratorService();
 
@@ -181,6 +181,69 @@ namespace VR.QrCodeGenerator.Tests
             var drawn = _service.Generate(Url, options, new ShapeStyle(Shape(new Sketch())));
 
             Assert.That(drawn, Is.EqualTo(_service.Generate(Url, options)));
+        }
+
+        [Test]
+        public async Task ViewModel_PlacesTheCodeWhereItWasMoved_AndUsesFineDetailByDefault()
+        {
+            // A wide bar across the sheet: with the code at the left or right end, the code ends up there in the image.
+            var bar = new Sketch();
+
+            for (var y = 160; y < 200; y += 4)
+                bar.Line(0, y, CanvasSize, y);
+
+            async Task<(double CodeAt, bool Scans)> GenerateWithCodeAt(double u)
+            {
+                var folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
+
+                try
+                {
+                    var settings = new Settings { PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = folder } };
+                    var viewModel = new DrawingCodesViewModel(new NullDialogService(), _service, new NullLoggingService(), settings)
+                    {
+                        QrCodeContent = Url,
+                        UseExactPixelSize = true,
+                        SelectedPixelsPerModule = 4,
+                        Drawing = bar.Pixels,
+                        CodeSize = 0.3,
+                        CodeCenter = new ShapePoint(u, 0.5)
+                    };
+
+                    await viewModel.GenerateQrCodeCommand.ExecuteAsync(null);
+
+                    var file = Directory.GetFiles(folder).Single();
+                    using var image = SKBitmap.Decode(file);
+
+                    // The code is taller than the bar, so the topmost dark pixel belongs to it: where it is, across the width.
+                    for (var y = 0; y < image.Height; y++)
+                    {
+                        for (var x = 0; x < image.Width; x++)
+                        {
+                            if (image.GetPixel(x, y).Red < 128)
+                                return ((double)x / image.Width, QrCodeGeneratorServiceTests.Decode(File.ReadAllBytes(file)) == Url);
+                        }
+                    }
+
+                    return (-1, false);
+                }
+                finally
+                {
+                    if (Directory.Exists(folder))
+                        Directory.Delete(folder, true);
+                }
+            }
+
+            var left = await GenerateWithCodeAt(0.15);
+            var right = await GenerateWithCodeAt(0.85);
+            var defaultDetail = new DrawingCodesViewModel(new NullDialogService(), _service, new NullLoggingService(), new Settings()).SelectedDetail;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(left.Scans && right.Scans, Is.True);
+                Assert.That(left.CodeAt, Is.LessThan(0.25), "code at the left end");
+                Assert.That(right.CodeAt, Is.GreaterThan(0.55), "code at the right end");
+                Assert.That(defaultDetail.CellsPerModule, Is.EqualTo(2), "Fine");
+            });
         }
 
         [Test]

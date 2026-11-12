@@ -84,9 +84,17 @@ To add a style:
 
 The **Drawing** tab is the generator with a canvas (`Controls/DrawingCanvas`) in place of the style picker. Pages put their own section above the options through `QrGeneratorView.TopContent`.
 
-- **Canvas:** a 360 x 360 white sheet with WPF's `InkCanvas` and one black pen, 10 px, round, no pressure. **Undo** removes the last line, **Clear** removes them all. A dashed square in the centre shows where the code goes: `DrawingCodesViewModel.CodeFraction`, 40 % of the canvas.
+- **Canvas:** a 360 x 360 white sheet with WPF's `InkCanvas` and one black pen, round, no pressure.
+  - **Modes:** **Draw**, **Erase** (`EraseByStroke`: removes a whole line) and **Move code**.
+  - **Pen size:** 4–24 px, default 10; changes new lines only.
+  - **Buttons:** **Undo** removes the last line, **Clear** removes them all, **Center** puts the code back in the middle.
+- **The code on the canvas:** the shared `CodePlacementOverlay` (blue square) shows where the code goes.
+  - It takes the mouse only in Move code mode: drag to move, drag the white corner to resize, click to place. In the other modes the mouse goes through it to the ink.
+  - The mouse wheel over the sheet resizes the code in every mode.
+  - It binds to `DrawingCodesViewModel.CodeSize` (default 40 %, 15–70 %, also a slider card) and `CodeCenter`.
+- **Detail:** a card with Normal, **Fine** (the default) or Extra fine/Ultra (`DetailOption`, shared with the Picture tab). Smoother lines and curves than whole modules.
 - **To the view model:** after every change the strokes are rendered on white and turned into a `bool[,]` mask, one value per canvas pixel. It reaches `DrawingCodesViewModel.Drawing` through a `OneWayToSource` binding.
-- **Generate:** `DrawingCodesViewModel.CreateStyle` (a `MainViewModel` hook) returns `new ShapeStyle(new MaskShape(copy of the mask, CodeFraction))`. `MainViewModel` keeps the style it generated with, so Save matches the preview even after the drawing changes. An empty canvas gives the plain code.
+- **Generate:** `DrawingCodesViewModel.CreateStyle` (a `MainViewModel` hook) returns `new ShapeStyle(new MaskShape(copy of the mask, CodeSize, codeCenter: CodeCenter), detail)`. `MainViewModel` keeps the style it generated with, so Save matches the preview even after the drawing changes. An empty canvas gives the plain code.
 - **`MaskShape`:**
   - A module where the pen covers at least 30 % is `Solid`.
   - A module at least half inside an enclosed area is `Textured`. Enclosed means it cannot be reached from the canvas edge without crossing a line or the code's square, so a head drawn on top of the code fills too.
@@ -106,11 +114,10 @@ Why dithering: an earlier version reduced the picture to a yes/no silhouette and
 - **Page:** a picture card shows the template: the picture's tones (or, in QR code color mode, its ink) where it will be drawn, with the code's square in blue. It has **Choose picture**, **Center**, **Remove**, and drag and drop of a file. Generate without a picture warns and does nothing (`MainViewModel.GenerateBlockedReason`).
 - **Defaults on this page:** exact pixel size at 8 px per module (2 px per dot at Ultra), so the image is always big enough for its hundreds of dots and every dot is whole pixels. A fixed width and height of 500 px was too small for a detailed picture and scaled the dots unevenly.
 - **Placing the code:**
-  - Drag the blue square, or click anywhere on the template to move the code's centre there.
-  - The template image and the square share one `Viewbox` at template pixel size, so mouse positions on its `Canvas` are template pixels, whatever the zoom.
-  - `PictureCodesViewModel.MoveCodeTo` stores the position as `CodeCenter` (fractions of width and height). `MaskShape.CodeSquare`, used by both the overlay and the shape, keeps the whole code inside the picture, so dragging past an edge stops there.
+  - `Controls/CodePlacementOverlay`, shared with the Drawing tab. Drag the blue square, click anywhere on the template to move the code's centre there, drag the white corner handle to resize around the centre, or turn the mouse wheel (2 % per notch). The size stays within 15–70 % of the shorter side.
+  - The template image and the overlay share one `Viewbox` at template pixel size, so mouse positions are template pixels, whatever the zoom.
+  - The overlay binds `CodeSize` and `CodeCenter` (fractions of width and height) two-way. The math is in `Service/Styles/Shapes/CodePlacement` (`MoveTo`, `ResizeTo`, `HandleSize`). It uses `MaskShape.CodeSquare` like the shape does, so the whole code stays inside the picture and dragging past an edge stops there.
   - A new picture, or **Center**, puts the code back in the middle.
-  - **Resizing on the template:** drag the white handle at the square's bottom-right corner (it resizes around the centre, `ResizeCodeTo`), or turn the mouse wheel over the picture (2 % per notch, `ResizeCodeBy`). The size stays within 15–70 % of the shorter side.
 - **Other controls:**
   - **Shape from:** **Whole picture** (the default, dithered), **Subject (automatic)** (dithered, with an outline), or **QR code color** (Kurkod-like random texture, for line art).
   - **Brightness** (−50 to +50 %) and **Contrast** (50–200 %): applied to the tones before dithering. Whole picture and Subject only.
@@ -186,6 +193,10 @@ The look comes from the sibling project `VR.ModdingTools` (`UniversalBackupTool.
 - `MainWindow` is a `ui:FluentWindow` with a Mica backdrop and a `ui:TitleBar`.
 - `App.xaml` merges `ui:ThemesDictionary`, `ui:ControlsDictionary` and `Styles/AppStyles.xaml`. `App.OnStartup` applies the Windows theme and `MainWindow` follows later changes through `SystemThemeWatcher`. There is no in-app theme setting.
 - The layout is a page title, then two columns: content and preview on the left, option cards on the right. A status line beside Copy and Reset confirms the last action.
+- **Help on hover:** `SettingsCard.HelpText` adds a plain-language tooltip (`HelpToolTipStyle`: wraps at 380 px, shown for a minute, also on disabled cards) and an ⓘ mark next to the card's header.
+  - Write it for someone who knows nothing about QR codes: what the option does, when to change it, and what it needs.
+  - Other controls use `<X.ToolTip><ToolTip Style="{StaticResource HelpToolTipStyle}" Content="..." /></X.ToolTip>`. `&#x0a;` starts a new line.
+  - The Picture and Drawing tabs have help on every option.
 - Option rows use `controls:SettingsCard` (icon, header, description, control). `IsStacked="True"` places the control below the text for wide inputs. Rows are grouped under `SectionHeaderTextStyle` headers.
 - `AppStyles.xaml` is a subset of the ModdingTools file with the same key names. The differences are a tighter `SectionHeaderTextStyle` margin and `SettingsCard` minimum height and icon margin, plus the additions `ColorSwatchBorderStyle` and `FlyoutBorderStyle`.
 

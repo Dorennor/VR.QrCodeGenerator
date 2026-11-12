@@ -4,6 +4,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:controls="clr-namespace:VR.QrCodeGenerator.WPF.Controls"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
       Title="Drawing"
       d:DesignHeight="800"
@@ -17,9 +18,49 @@
 
                 <Border Style="{StaticResource CardBorderStyle}">
                     <controls:DrawingCanvas CanvasSize="360"
-                                            CodeFraction="{x:Static vm:DrawingCodesViewModel.CodeFraction}"
-                                            Drawing="{Binding Drawing, Mode=OneWayToSource}" />
+                                            CodeCenter="{Binding CodeCenter}"
+                                            CodeSize="{Binding CodeSize}"
+                                            Drawing="{Binding Drawing, Mode=OneWayToSource}"
+                                            MaxCodeSize="{x:Static vm:DrawingCodesViewModel.MaxCodeSize}"
+                                            MinCodeSize="{x:Static vm:DrawingCodesViewModel.MinCodeSize}" />
                 </Border>
+
+                <controls:SettingsCard Margin="0,4,0,4"
+                                       Description="The code's share of the sheet. Or resize the blue square: Move code mode, or the mouse wheel."
+                                       Header="Code size"
+                                       HelpText="How big the QR code is compared to your drawing.&#x0a;&#x0a;A smaller code leaves more room for the drawing. But if you print the image small, a tiny code becomes hard for a phone to read, so keep it big enough to see its little squares clearly.&#x0a;&#x0a;You can also resize the blue square on the sheet: turn the mouse wheel over it, or choose Move code and drag its white corner."
+                                       Icon="{ui:SymbolIcon QrCode24}"
+                                       IsStacked="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="48" />
+                        </Grid.ColumnDefinitions>
+                        <!--  Fine steps: resizing on the sheet sets any size, and snapping would move it.  -->
+                        <Slider VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True"
+                                Maximum="{x:Static vm:DrawingCodesViewModel.MaxCodeSize}"
+                                Minimum="{x:Static vm:DrawingCodesViewModel.MinCodeSize}"
+                                TickFrequency="0.01"
+                                Value="{Binding CodeSize}" />
+                        <TextBlock Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextStyle}"
+                                   Text="{Binding CodeSize, StringFormat={}{0:P0}}" />
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Margin="0,0,0,4"
+                                       Description="{Binding SelectedDetail.Description}"
+                                       Header="Detail"
+                                       HelpText="How small the squares that draw your lines and shapes are.&#x0a;&#x0a;Smaller squares give smoother lines and curves. Normal gives a chunky, pixel-art look, like the chicken on the Custom codes page.&#x0a;&#x0a;The QR code itself works the same at every setting."
+                                       Icon="{ui:SymbolIcon ZoomIn24}"
+                                       IsStacked="True">
+                    <ComboBox DisplayMemberPath="Name"
+                              ItemsSource="{Binding Details}"
+                              SelectedItem="{Binding SelectedDetail}" />
+                </controls:SettingsCard>
             </StackPanel>
         </controls:QrGeneratorView.TopContent>
     </controls:QrGeneratorView>

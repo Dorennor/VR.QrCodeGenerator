@@ -255,8 +255,15 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void ViewModel_MoveCodeTo_KeepsTheCodeInside_AndCenterResetsIt()
+        public void MovingTheCode_KeepsItInside_AndCenterResetsIt()
         {
+            // What dragging the blue square does (CodePlacementOverlay), on a 600 x 720 picture with a 30 % code.
+            const int width = 600, height = 720;
+
+            var corner = CodePlacement.MoveTo(width, height, 0.3, -1000, -1000);
+            var (cornerLeft, cornerTop, _) = MaskShape.CodeSquare(width, height, 0.3, corner);
+            var moved = CodePlacement.MoveTo(width, height, 0.3, width * 0.3, height * 0.7);
+
             var folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
             var pictureFile = Path.Combine(folder, "cat.png");
             Directory.CreateDirectory(folder);
@@ -266,13 +273,7 @@ namespace VR.QrCodeGenerator.Tests
             {
                 var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
                 viewModel.LoadPicture(pictureFile);
-
-                viewModel.MoveCodeTo(-1000, -1000);
-                var (cornerLeft, cornerTop) = (viewModel.CodeLeft, viewModel.CodeTop);
-
-                viewModel.MoveCodeTo(viewModel.TemplateWidth * 0.3, viewModel.TemplateHeight * 0.7);
-                var moved = viewModel.CodeCenter;
-
+                viewModel.CodeCenter = moved;
                 viewModel.CenterCodeCommand.Execute(null);
 
                 Assert.Multiple(() =>
@@ -669,47 +670,25 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void ViewModel_ResizesTheCodeOnThePicture_WithinLimits()
+        public void ResizingTheCode_FollowsTheCorner_WithinLimits()
         {
-            var folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
-            var pictureFile = Path.Combine(folder, "scene.png");
-            Directory.CreateDirectory(folder);
-            File.WriteAllBytes(pictureFile, Scene());
+            // What dragging the corner handle does (CodePlacementOverlay), on a 400 x 300 picture, code centred.
+            const int width = 400, height = 300;
+            var centre = new ShapePoint(0.5, 0.5);
+            const double min = PictureCodesViewModel.MinCodeSize, max = PictureCodesViewModel.MaxCodeSize;
 
-            try
+            // Dragging the corner 25 % of the shorter side away from the centre makes a code half the shorter side.
+            var dragged = CodePlacement.ResizeTo(width, height, 0.3, centre, 200 + 300 * 0.25, 150 + 300 * 0.1, min, max);
+            var largest = CodePlacement.ResizeTo(width, height, 0.3, centre, 10_000, 150, min, max);
+            var smallest = CodePlacement.ResizeTo(width, height, 0.3, centre, 200, 150, min, max);
+
+            Assert.Multiple(() =>
             {
-                var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
-                viewModel.LoadPicture(pictureFile);
-
-                var centreX = viewModel.CodeLeft + viewModel.CodeSide / 2;
-                var centreY = viewModel.CodeTop + viewModel.CodeSide / 2;
-                var shorter = Math.Min(viewModel.TemplateWidth, viewModel.TemplateHeight);
-
-                // Dragging the corner 25 % of the shorter side away from the centre makes a code half the shorter side.
-                viewModel.ResizeCodeTo(centreX + shorter * 0.25, centreY + shorter * 0.1);
-                var dragged = viewModel.CodeSize;
-
-                viewModel.ResizeCodeTo(centreX + 10_000, centreY);
-                var largest = viewModel.CodeSize;
-
-                viewModel.ResizeCodeTo(centreX, centreY);
-                var smallest = viewModel.CodeSize;
-
-                viewModel.ResizeCodeBy(0.02);
-
-                Assert.Multiple(() =>
-                {
-                    Assert.That(dragged, Is.EqualTo(0.5).Within(0.01));
-                    Assert.That(largest, Is.EqualTo(PictureCodesViewModel.MaxCodeSize));
-                    Assert.That(smallest, Is.EqualTo(PictureCodesViewModel.MinCodeSize));
-                    Assert.That(viewModel.CodeSize, Is.EqualTo(PictureCodesViewModel.MinCodeSize + 0.02).Within(1e-9), "one wheel notch");
-                    Assert.That(viewModel.CodeHandleLeft, Is.EqualTo(viewModel.CodeLeft + viewModel.CodeSide - viewModel.CodeHandleSize / 2).Within(1e-9));
-                });
-            }
-            finally
-            {
-                Directory.Delete(folder, true);
-            }
+                Assert.That(dragged, Is.EqualTo(0.5).Within(0.01));
+                Assert.That(largest, Is.EqualTo(max));
+                Assert.That(smallest, Is.EqualTo(min));
+                Assert.That(CodePlacement.HandleSize(width, height), Is.EqualTo(400 / 24.0).Within(1e-9));
+            });
         }
 
         [Test]

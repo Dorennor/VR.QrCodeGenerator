@@ -1,14 +1,18 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+
+using VR.QrCodeGenerator.Service.Styles.Shapes;
 
 namespace VR.QrCodeGenerator.WPF.Controls
 {
     /// <summary>
-    /// A square sheet for drawing with one black pen of a fixed size, with a dashed square in the middle where the code
-    /// goes. <see cref="Drawing"/> holds the drawing as a mask, one value per pixel, and updates after every change.
+    /// A square sheet for drawing with one black pen, with the QR code's place shown as a blue square that can be moved
+    /// and resized in "Move code" mode. <see cref="Drawing"/> holds the drawing as a mask, one value per pixel, and
+    /// updates after every change.
     /// </summary>
     public partial class DrawingCanvas : UserControl
     {
@@ -16,18 +20,28 @@ namespace VR.QrCodeGenerator.WPF.Controls
             DependencyProperty.Register(nameof(Drawing), typeof(bool[,]), typeof(DrawingCanvas),
                                         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
-        public static readonly DependencyProperty CodeFractionProperty =
-            DependencyProperty.Register(nameof(CodeFraction), typeof(double), typeof(DrawingCanvas),
-                                        new PropertyMetadata(0.4, (sender, _) => ((DrawingCanvas)sender).UpdateCodeGuide()));
+        public static readonly DependencyProperty CodeSizeProperty =
+            DependencyProperty.Register(nameof(CodeSize), typeof(double), typeof(DrawingCanvas),
+                                        new FrameworkPropertyMetadata(0.4, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+        public static readonly DependencyProperty CodeCenterProperty =
+            DependencyProperty.Register(nameof(CodeCenter), typeof(ShapePoint), typeof(DrawingCanvas),
+                                        new FrameworkPropertyMetadata(new ShapePoint(0.5, 0.5), FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+        public static readonly DependencyProperty MinCodeSizeProperty =
+            DependencyProperty.Register(nameof(MinCodeSize), typeof(double), typeof(DrawingCanvas), new PropertyMetadata(0.15));
+
+        public static readonly DependencyProperty MaxCodeSizeProperty =
+            DependencyProperty.Register(nameof(MaxCodeSize), typeof(double), typeof(DrawingCanvas), new PropertyMetadata(0.7));
 
         public static readonly DependencyProperty CanvasSizeProperty =
             DependencyProperty.Register(nameof(CanvasSize), typeof(double), typeof(DrawingCanvas),
-                                        new PropertyMetadata(380.0, (sender, _) => ((DrawingCanvas)sender).UpdateCodeGuide()));
+                                        new PropertyMetadata(380.0, (sender, _) => ((DrawingCanvas)sender).OnCanvasSizeChanged()));
 
-        /// <summary>
-        /// Pen size in canvas pixels; about two modules of a typical code.
-        /// </summary>
-        public const double PenSize = 10;
+        private static readonly DependencyPropertyKey CanvasPixelsKey =
+            DependencyProperty.RegisterReadOnly(nameof(CanvasPixels), typeof(int), typeof(DrawingCanvas), new PropertyMetadata(380));
+
+        public static readonly DependencyProperty CanvasPixelsProperty = CanvasPixelsKey.DependencyProperty;
 
         public DrawingCanvas()
         {
@@ -36,8 +50,8 @@ namespace VR.QrCodeGenerator.WPF.Controls
             Ink.DefaultDrawingAttributes = new DrawingAttributes
             {
                 Color = Colors.Black,
-                Width = PenSize,
-                Height = PenSize,
+                Width = PenSizeSlider.Value,
+                Height = PenSizeSlider.Value,
                 StylusTip = StylusTip.Ellipse,
                 FitToCurve = true,
                 IgnorePressure = true
@@ -45,7 +59,7 @@ namespace VR.QrCodeGenerator.WPF.Controls
 
             Ink.Strokes.StrokesChanged += (_, _) => UpdateDrawing();
 
-            UpdateCodeGuide();
+            OnCanvasSizeChanged();
         }
 
         /// <summary>
@@ -60,10 +74,31 @@ namespace VR.QrCodeGenerator.WPF.Controls
         /// <summary>
         /// The side of the code's square, as a share of the canvas.
         /// </summary>
-        public double CodeFraction
+        public double CodeSize
         {
-            get => (double)GetValue(CodeFractionProperty);
-            set => SetValue(CodeFractionProperty, value);
+            get => (double)GetValue(CodeSizeProperty);
+            set => SetValue(CodeSizeProperty, value);
+        }
+
+        /// <summary>
+        /// The code's centre, as fractions of the canvas.
+        /// </summary>
+        public ShapePoint CodeCenter
+        {
+            get => (ShapePoint)GetValue(CodeCenterProperty);
+            set => SetValue(CodeCenterProperty, value);
+        }
+
+        public double MinCodeSize
+        {
+            get => (double)GetValue(MinCodeSizeProperty);
+            set => SetValue(MinCodeSizeProperty, value);
+        }
+
+        public double MaxCodeSize
+        {
+            get => (double)GetValue(MaxCodeSizeProperty);
+            set => SetValue(MaxCodeSizeProperty, value);
         }
 
         /// <summary>
@@ -75,13 +110,51 @@ namespace VR.QrCodeGenerator.WPF.Controls
             set => SetValue(CanvasSizeProperty, value);
         }
 
-        private void UpdateCodeGuide()
+        /// <summary>
+        /// <see cref="CanvasSize"/> in whole pixels: the size of <see cref="Drawing"/> and of the code overlay.
+        /// </summary>
+        public int CanvasPixels => (int)GetValue(CanvasPixelsProperty);
+
+        private void OnCanvasSizeChanged()
         {
             if (Surface is null)
                 return;
 
             Surface.Width = Surface.Height = CanvasSize;
-            CodeGuide.Width = CodeGuide.Height = CanvasSize * CodeFraction;
+            SetValue(CanvasPixelsKey, (int)Math.Round(CanvasSize));
+        }
+
+        /// <summary>
+        /// Draw, Erase or Move code: the ink takes the mouse for the first two, the code overlay for the last.
+        /// </summary>
+        private void Mode_OnChecked(object sender, RoutedEventArgs eventArgs)
+        {
+            if (Ink is null || CodeOverlay is null)
+                return;
+
+            Ink.EditingMode = sender == EraseMode ? InkCanvasEditingMode.EraseByStroke
+                            : sender == MoveMode ? InkCanvasEditingMode.None
+                            : InkCanvasEditingMode.Ink;
+
+            CodeOverlay.IsInteractive = sender == MoveMode;
+        }
+
+        private void PenSize_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> eventArgs)
+        {
+            if (Ink?.DefaultDrawingAttributes is null)
+                return;
+
+            Ink.DefaultDrawingAttributes.Width = eventArgs.NewValue;
+            Ink.DefaultDrawingAttributes.Height = eventArgs.NewValue;
+        }
+
+        /// <summary>
+        /// The mouse wheel over the sheet resizes the code in every mode, so the code can be sized while drawing.
+        /// </summary>
+        private void Surface_OnPreviewMouseWheel(object sender, MouseWheelEventArgs eventArgs)
+        {
+            CodeOverlay.ResizeBy(Math.Sign(eventArgs.Delta) * CodePlacementOverlay.WheelStep);
+            eventArgs.Handled = true;
         }
 
         private void Undo_OnClick(object sender, RoutedEventArgs eventArgs)
@@ -95,12 +168,17 @@ namespace VR.QrCodeGenerator.WPF.Controls
             Ink.Strokes.Clear();
         }
 
+        private void Center_OnClick(object sender, RoutedEventArgs eventArgs)
+        {
+            CodeCenter = new ShapePoint(0.5, 0.5);
+        }
+
         /// <summary>
         /// Renders the strokes on white and turns every dark pixel into a true.
         /// </summary>
         private void UpdateDrawing()
         {
-            var size = (int)Math.Round(CanvasSize);
+            var size = CanvasPixels;
 
             if (Ink.Strokes.Count == 0)
             {

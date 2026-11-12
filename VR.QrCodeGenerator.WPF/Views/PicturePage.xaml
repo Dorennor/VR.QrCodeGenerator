@@ -5,6 +5,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:controls="clr-namespace:VR.QrCodeGenerator.WPF.Controls"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
       Title="Picture"
       d:DesignHeight="800"
       d:DesignWidth="1000"
@@ -22,15 +23,18 @@
                         Style="{StaticResource CardBorderStyle}">
                     <StackPanel>
                         <!--
-                            The template: black becomes the shape, the blue square is the code. Drag the square to move
-                            the code, or click anywhere to put it there. Template and square share one Viewbox, so mouse
-                            positions on the canvas are template pixels. White in both themes, like the drawing canvas.
+                            The template: the picture as it will be drawn, the blue square is the code. The square can be
+                            dragged, resized and clicked into place (CodePlacementOverlay). Template and square share one
+                            Viewbox, so mouse positions are template pixels. White in both themes, like the drawing canvas.
                         -->
                         <Border Height="260"
                                 Background="White"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                 BorderThickness="1"
                                 CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <Border.ToolTip>
+                                <ToolTip Style="{StaticResource HelpToolTipStyle}" Content="This is your picture as it will appear around the QR code. The blue square is where the QR code goes.&#x0a;&#x0a;• Drag the blue square to move the code.&#x0a;• Drag its white corner, or turn the mouse wheel, to make it bigger or smaller.&#x0a;• Click anywhere on the picture to put the code there." />
+                            </Border.ToolTip>
                             <Grid>
                                 <Viewbox Margin="4" Stretch="Uniform">
                                     <Viewbox.Style>
@@ -47,37 +51,12 @@
                                         <Image RenderOptions.BitmapScalingMode="NearestNeighbor"
                                                Source="{Binding TemplatePreview}"
                                                Stretch="Fill" />
-                                        <Canvas Background="Transparent"
-                                                Cursor="SizeAll"
-                                                MouseLeftButtonDown="CodeArea_OnMouseLeftButtonDown"
-                                                MouseLeftButtonUp="CodeArea_OnMouseLeftButtonUp"
-                                                MouseMove="CodeArea_OnMouseMove"
-                                                MouseWheel="CodeArea_OnMouseWheel"
-                                                ToolTip="Drag the blue square to move the code, drag its corner (or use the mouse wheel) to resize it, or click where it should go">
-                                            <Border Canvas.Left="{Binding CodeLeft}"
-                                                    Canvas.Top="{Binding CodeTop}"
-                                                    Width="{Binding CodeSide}"
-                                                    Height="{Binding CodeSide}"
-                                                    Background="#590078D4"
-                                                    BorderBrush="#FF0078D4"
-                                                    BorderThickness="2"
-                                                    IsHitTestVisible="False">
-                                                <Viewbox Margin="8">
-                                                    <ui:SymbolIcon Foreground="#FF0078D4" Symbol="QrCode24" />
-                                                </Viewbox>
-                                            </Border>
-
-                                            <!--  Resize handle: drag to make the code bigger or smaller around its centre.  -->
-                                            <Border Canvas.Left="{Binding CodeHandleLeft}"
-                                                    Canvas.Top="{Binding CodeHandleTop}"
-                                                    Width="{Binding CodeHandleSize}"
-                                                    Height="{Binding CodeHandleSize}"
-                                                    Background="White"
-                                                    BorderBrush="#FF0078D4"
-                                                    BorderThickness="3"
-                                                    CornerRadius="3"
-                                                    IsHitTestVisible="False" />
-                                        </Canvas>
+                                        <controls:CodePlacementOverlay AreaHeight="{Binding TemplateHeight}"
+                                                                       AreaWidth="{Binding TemplateWidth}"
+                                                                       CodeCenter="{Binding CodeCenter}"
+                                                                       CodeSize="{Binding CodeSize}"
+                                                                       MaxCodeSize="{x:Static vm:PictureCodesViewModel.MaxCodeSize}"
+                                                                       MinCodeSize="{x:Static vm:PictureCodesViewModel.MinCodeSize}" />
                                     </Grid>
                                 </Viewbox>
 
@@ -120,7 +99,7 @@
                                        Content="Center"
                                        Icon="{ui:SymbolIcon AlignCenterHorizontal24}"
                                        IsEnabled="{Binding HasPicture}"
-                                       ToolTip="Put the code back in the middle of the picture" />
+                                       ToolTip="Put the QR code back in the middle of the picture." />
                             <ui:Button Margin="8,0,0,0"
                                        Command="{Binding RemovePictureCommand}"
                                        Content="Remove"
@@ -137,6 +116,7 @@
                 <controls:SettingsCard Margin="0,4,0,4"
                                        Description="{Binding SelectedSource.Description}"
                                        Header="Shape from"
+                                       HelpText="Which part of your picture appears around the QR code.&#x0a;&#x0a;• Whole picture: everything in the picture, turned into tiny black and white dots, like a photo printed in a newspaper. Best for photos.&#x0a;&#x0a;• Subject: only the main thing in the picture, such as a person or an animal on a plain background. The background stays white and the subject gets an outline.&#x0a;&#x0a;• QR code color: only the parts that have the same color as your QR code (black by default), for example the lines of a drawing. They are filled with a QR-style pattern, like the chicken on the Custom codes page."
                                        Icon="{ui:SymbolIcon ImageEdit24}"
                                        IsStacked="True">
                     <ComboBox DisplayMemberPath="Name"
@@ -146,6 +126,7 @@
 
                 <controls:SettingsCard Description="Lighter or darker before the picture is turned into dots. Raise it for dark photos."
                                        Header="Brightness"
+                                       HelpText="Makes the picture lighter or darker before it is turned into dots.&#x0a;&#x0a;If the result looks too black, move the slider to the right. If it looks faded, move it to the left.&#x0a;&#x0a;This only changes the picture, never the QR code itself."
                                        Icon="{ui:SymbolIcon BrightnessHigh24}"
                                        IsEnabled="{Binding UsesTones}"
                                        IsStacked="True">
@@ -170,6 +151,7 @@
 
                 <controls:SettingsCard Description="More contrast makes shapes stand out; less keeps soft shading."
                                        Header="Contrast"
+                                       HelpText="How strongly the light and dark parts of the picture are separated.&#x0a;&#x0a;More contrast gives bold, clear shapes. Less keeps soft shading. If the picture looks gray and muddy, try more contrast."
                                        Icon="{ui:SymbolIcon DarkTheme24}"
                                        IsEnabled="{Binding UsesTones}"
                                        IsStacked="True">
@@ -194,6 +176,7 @@
 
                 <controls:SettingsCard Description="How much of the picture counts as the shape. Raise it if parts are missing, lower it if the background creeps in."
                                        Header="Sensitivity"
+                                       HelpText="Decides how much of the picture counts as your subject or drawing.&#x0a;&#x0a;Raise it if parts of it are missing. Lower it if bits of the background show up.&#x0a;&#x0a;Only for the Subject and QR code color shapes: with Whole picture, all of the picture is used anyway."
                                        Icon="{ui:SymbolIcon Options24}"
                                        IsEnabled="{Binding UsesSensitivity}"
                                        IsStacked="True">
@@ -218,6 +201,7 @@
 
                 <controls:SettingsCard Description="The code's share of the picture. Smaller leaves more of the picture around it, with more detail."
                                        Header="Code size"
+                                       HelpText="How big the QR code is compared to the picture.&#x0a;&#x0a;A smaller code leaves more room for the picture. But if you print the image small, a tiny code becomes hard for a phone to read, so keep it big enough to see its little squares clearly.&#x0a;&#x0a;You can also resize the blue square on the picture: drag its white corner or turn the mouse wheel."
                                        Icon="{ui:SymbolIcon QrCode24}"
                                        IsStacked="True">
                     <Grid>
@@ -243,6 +227,7 @@
                 <controls:SettingsCard Margin="0,0,0,4"
                                        Description="{Binding SelectedDetail.Description}"
                                        Header="Detail"
+                                       HelpText="How small the dots that make up the picture are.&#x0a;&#x0a;Smaller dots show more detail: Ultra looks most like the original picture. Normal gives a chunky, pixel-art look.&#x0a;&#x0a;The QR code itself works the same at every setting."
                                        Icon="{ui:SymbolIcon ZoomIn24}"
                                        IsStacked="True">
                     <ComboBox DisplayMemberPath="Name"
@@ -253,6 +238,7 @@
                 <controls:SettingsCard Margin="0,0,0,4"
                                        Description="{Binding SelectedCodeBlend.Description}"
                                        Header="Code blending"
+                                       HelpText="Lets the picture show through the QR code, so it does not look like a sticker on top.&#x0a;&#x0a;A phone only reads the middle of each little square of a QR code, so the edges of each square can follow the picture.&#x0a;&#x0a;• Off: a plain black and white code.&#x0a;• Subtle: a little of the picture. The easiest to scan.&#x0a;• Balanced: a good mix.&#x0a;• Strong: the code almost disappears. Check that your phone can still scan it.&#x0a;&#x0a;The three big squares in the corners always stay solid: phones use them to find the code.&#x0a;&#x0a;Needs Extra fine or Ultra detail, and the Whole picture or Subject shape."
                                        Icon="{ui:SymbolIcon Blur24}"
                                        IsEnabled="{Binding CanBlendCode}"
                                        IsStacked="True">

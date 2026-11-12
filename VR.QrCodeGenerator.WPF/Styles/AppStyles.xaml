@@ -1,7 +1,8 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="clr-namespace:VR.QrCodeGenerator.WPF.Controls">
+    xmlns:controls="clr-namespace:VR.QrCodeGenerator.WPF.Controls"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
     <!--
         Shared look of the application, taken from VR.ModdingTools and modelled on Windows 11 (Settings app).
@@ -139,11 +140,22 @@
                                 Grid.Column="1"
                                 Margin="0,0,16,0"
                                 VerticalAlignment="Center">
+                                <!--  The header, with an info mark when the card has HelpText (shown on hover).  -->
                                 <TextBlock
                                     FontSize="14"
                                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                    Text="{TemplateBinding Header}"
-                                    TextWrapping="Wrap" />
+                                    TextWrapping="Wrap">
+                                    <Run Text="{Binding Header, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}" />
+                                    <InlineUIContainer BaselineAlignment="Center">
+                                        <ui:SymbolIcon
+                                            x:Name="HelpMark"
+                                            Margin="2,0,0,0"
+                                            FontSize="13"
+                                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                            Symbol="Info16"
+                                            Visibility="Visible" />
+                                    </InlineUIContainer>
+                                </TextBlock>
                                 <TextBlock
                                     x:Name="DescriptionText"
                                     Margin="0,2,0,0"
@@ -165,6 +177,12 @@
                         <Trigger Property="Icon" Value="{x:Null}">
                             <Setter TargetName="IconHost" Property="Visibility" Value="Collapsed" />
                         </Trigger>
+                        <Trigger Property="HelpText" Value="{x:Null}">
+                            <Setter TargetName="HelpMark" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="HelpText" Value="">
+                            <Setter TargetName="HelpMark" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
                         <Trigger Property="Description" Value="{x:Null}">
                             <Setter TargetName="DescriptionText" Property="Visibility" Value="Collapsed" />
                         </Trigger>
@@ -185,6 +203,26 @@
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Help on hover: plain-language explanations of an option, several lines long. Wraps instead of growing wide.
+        Use as <X.ToolTip><ToolTip Style="{StaticResource HelpToolTipStyle}" Content="..." /></X.ToolTip>, or set
+        HelpText on a SettingsCard. "&#x0a;" in Content starts a new line.
+    -->
+    <Style x:Key="HelpToolTipStyle"
+           BasedOn="{StaticResource {x:Type ToolTip}}"
+           TargetType="ToolTip">
+        <Setter Property="MaxWidth" Value="380" />
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <TextBlock LineHeight="19"
+                               Text="{Binding}"
+                               TextWrapping="Wrap" />
+                </DataTemplate>
             </Setter.Value>
         </Setter>
     </Style>

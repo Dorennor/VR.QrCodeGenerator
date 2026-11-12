@@ -122,37 +122,6 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         /// </summary>
         public bool CanBlendCode => UsesTones && SelectedDetail.CellsPerModule >= 3;
 
-        /// <summary>
-        /// The resize handle at the code square's bottom-right corner, in template pixels: about 4 % of the picture.
-        /// </summary>
-        public double CodeHandleSize => Math.Max(TemplateWidth, TemplateHeight) / 24.0;
-
-        public double CodeHandleLeft => CodeLeft + CodeSide - CodeHandleSize / 2;
-
-        public double CodeHandleTop => CodeTop + CodeSide - CodeHandleSize / 2;
-
-        /// <summary>
-        /// Resizes the code around its centre so its corner follows (<paramref name="x"/>, <paramref name="y"/>) in
-        /// template pixels, within <see cref="MinCodeSize"/> and <see cref="MaxCodeSize"/>.
-        /// </summary>
-        public void ResizeCodeTo(double x, double y)
-        {
-            if (_picture is null)
-                return;
-
-            var centreX = CodeLeft + CodeSide / 2;
-            var centreY = CodeTop + CodeSide / 2;
-            var side = 2 * Math.Max(Math.Abs(x - centreX), Math.Abs(y - centreY));
-
-            CodeSize = Math.Clamp(side / Math.Min(TemplateWidth, TemplateHeight), MinCodeSize, MaxCodeSize);
-        }
-
-        /// <summary>
-        /// Makes the code bigger (positive) or smaller (negative) by <paramref name="step"/> of the picture's shorter
-        /// side, for the mouse wheel.
-        /// </summary>
-        public void ResizeCodeBy(double step) => CodeSize = Math.Clamp(CodeSize + step, MinCodeSize, MaxCodeSize);
-
         public PictureCodesViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
             : base(dialogService, qrCodeGeneratorService, loggingService, settings)
         {
@@ -175,13 +144,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             new(PictureTemplateSource.CodeColor, "QR code color", "Only the parts in the QR code color, filled with QR-like texture like Kurkod. For line art and silhouettes.")
         ];
 
-        public static IReadOnlyList<DetailOption> Details { get; } =
-        [
-            new(1, "Normal", "Dots as big as the code's squares, like Kurkod."),
-            new(2, "Fine", "Dots half the size of the code's squares."),
-            new(3, "Extra fine", "Dots a third of the size of the code's squares."),
-            new(4, "Ultra", "Dots a quarter of the size of the code's squares: the most detail.")
-        ];
+        public static IReadOnlyList<DetailOption> Details => DetailOption.All;
 
         public override string PageTitle => "Picture QR code";
 
@@ -200,22 +163,11 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         public bool UsesSensitivity => SelectedSource.Source != PictureTemplateSource.WholePicture;
 
         /// <summary>
-        /// The template's size in pixels; the preview overlay uses the same coordinates.
+        /// The template's size in pixels; the code placement overlay uses the same coordinates.
         /// </summary>
         public int TemplateWidth => _picture?.Width ?? 1;
 
         public int TemplateHeight => _picture?.Height ?? 1;
-
-        /// <summary>
-        /// The code's square on the template, in template pixels, for the draggable overlay.
-        /// </summary>
-        public double CodeLeft => CodeSquare.Left;
-
-        public double CodeTop => CodeSquare.Top;
-
-        public double CodeSide => CodeSquare.Side;
-
-        private (double Left, double Top, double Side) CodeSquare => MaskShape.CodeSquare(TemplateWidth, TemplateHeight, CodeSize, CodeCenter);
 
         protected override string GenerateBlockedReason => _picture is null ? "Choose a picture first." : null;
 
@@ -268,9 +220,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 // A new picture starts with the code in the middle.
                 OnPropertyChanged(nameof(TemplateWidth));
                 OnPropertyChanged(nameof(TemplateHeight));
-                OnPropertyChanged(nameof(CodeHandleSize));
                 CodeCenter = Middle;
-                NotifyCodeSquareChanged();
 
                 UpdateTemplate();
             }
@@ -291,36 +241,8 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             PictureName = null;
         }
 
-        /// <summary>
-        /// Moves the code's centre to (<paramref name="x"/>, <paramref name="y"/>) in template pixels, keeping the
-        /// whole code inside the picture.
-        /// </summary>
-        public void MoveCodeTo(double x, double y)
-        {
-            if (_picture is null)
-                return;
-
-            // Clamped through the square, so dragging past an edge does not store a position the code cannot reach.
-            var (left, top, side) = MaskShape.CodeSquare(TemplateWidth, TemplateHeight, CodeSize, new ShapePoint(x / TemplateWidth, y / TemplateHeight));
-
-            CodeCenter = new ShapePoint((left + side / 2) / TemplateWidth, (top + side / 2) / TemplateHeight);
-        }
-
         [RelayCommand]
         public void CenterCode() => CodeCenter = Middle;
-
-        partial void OnCodeSizeChanged(double value) => NotifyCodeSquareChanged();
-
-        partial void OnCodeCenterChanged(ShapePoint value) => NotifyCodeSquareChanged();
-
-        private void NotifyCodeSquareChanged()
-        {
-            OnPropertyChanged(nameof(CodeLeft));
-            OnPropertyChanged(nameof(CodeTop));
-            OnPropertyChanged(nameof(CodeSide));
-            OnPropertyChanged(nameof(CodeHandleLeft));
-            OnPropertyChanged(nameof(CodeHandleTop));
-        }
 
         private void OnTemplateInputChanged(object sender, PropertyChangedEventArgs eventArgs)
         {
@@ -344,8 +266,6 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         private static SKColor ToSkColor(Color color) => new SKColor(color.R, color.G, color.B);
 
         public sealed record TemplateSourceOption(PictureTemplateSource Source, string Name, string Description);
-
-        public sealed record DetailOption(int CellsPerModule, string Name, string Description);
 
         /// <param name="Bias">How far a blended module's border leans to its own color, or null for a solid code.</param>
         public sealed record CodeBlendOption(double? Bias, string Name, string Description);
