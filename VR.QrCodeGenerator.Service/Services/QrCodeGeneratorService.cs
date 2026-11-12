@@ -8,8 +8,8 @@ using SkiaSharp;
 using VR.QrCodeGenerator.Model.Enums;
 using VR.QrCodeGenerator.Model.Models;
 using VR.QrCodeGenerator.Service.Exceptions;
-using VR.QrCodeGenerator.Service.Helpers;
 using VR.QrCodeGenerator.Service.Interfaces;
+using VR.QrCodeGenerator.Service.Styles;
 
 namespace VR.QrCodeGenerator.Service.Services
 {
@@ -52,7 +52,7 @@ namespace VR.QrCodeGenerator.Service.Services
         }
 
         /// <summary>
-        /// The final module matrix [row, column], true for dark: the QR code, drawn as a chicken when asked, with the
+        /// The final module matrix [row, column], true for dark: the QR code drawn in the chosen style, with the
         /// quiet zone when asked. Not always square: a chicken is wider than tall.
         /// </summary>
         private static bool[,] BuildModules(string content, QrCodeOptions options)
@@ -69,8 +69,7 @@ namespace VR.QrCodeGenerator.Service.Services
                         code[row, column] = qrCodeData.ModuleMatrix[row + QuietZoneModules][column + QuietZoneModules];
                 }
 
-                if (options.ChickenShape)
-                    code = KurkodBuilder.Build(code, content);
+                code = QrStyles.Get(options.Style).Apply(code, content);
 
                 return options.DrawQuietZones ? AddMargin(code, QuietZoneModules) : code;
             }

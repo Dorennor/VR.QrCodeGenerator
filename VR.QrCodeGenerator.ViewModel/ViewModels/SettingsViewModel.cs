@@ -36,12 +36,6 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         [ObservableProperty]
         private bool _logToConsole;
 
-        /// <summary>
-        /// "Kurkod": QR codes are drawn as chickens.
-        /// </summary>
-        [ObservableProperty]
-        private bool _chickenShape;
-
         [ObservableProperty]
         private string _statusMessage;
 
@@ -74,9 +68,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             OutputPath = _settings.PathsSettings?.OutputPath ?? string.Empty;
             LogToFile = _settings.LoggingSettings?.File ?? true;
             DebugLogging = _settings.LoggingSettings?.Debug ?? false;
-            LogToConsole = _settings.LoggingSettings?.Console ?? false;
-            ChickenShape = _settings.StyleSettings?.ChickenShape ?? false;
-            StatusMessage = null;
+            LogToConsole = _settings.LoggingSettings?.Console ?? false;            StatusMessage = null;
         }
 
         [RelayCommand]
@@ -93,8 +85,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             var updated = new Settings
             {
                 PathsSettings = new PathsSettings { UseCustomPath = UseCustomPath, OutputPath = outputPath },
-                LoggingSettings = new LoggingSettings { File = LogToFile, Debug = DebugLogging, Console = LogToConsole },
-                StyleSettings = new StyleSettings { ChickenShape = ChickenShape }
+                LoggingSettings = new LoggingSettings { File = LogToFile, Debug = DebugLogging, Console = LogToConsole }
             };
 
             try
@@ -110,9 +101,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
 
             // The rest of the app holds this same instance, so the new values apply without a restart.
             _settings.PathsSettings = updated.PathsSettings;
-            _settings.LoggingSettings = updated.LoggingSettings;
-            _settings.StyleSettings = updated.StyleSettings;
-            _loggingService.ApplySettings(updated.LoggingSettings);
+            _settings.LoggingSettings = updated.LoggingSettings;            _loggingService.ApplySettings(updated.LoggingSettings);
 
             OutputPath = outputPath;
             StatusMessage = $"Settings saved to {SettingsFilePath}";

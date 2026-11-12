@@ -31,24 +31,38 @@ namespace VR.QrCodeGenerator.Tests
         private Settings _settings;
 
         [Test]
-        public void KurkodSetting_AppliesToTheNextGenerateWithoutRestart()
+        public void GeneratorPage_OffersNoStylesAndMakesPlainCodes()
         {
             _viewModel.QrCodeContent = "https://example.com";
-            _viewModel.UseExactPixelSize = true;
-            _viewModel.SelectedPixelsPerModule = 6;
-
-            _viewModel.GenerateQrCodeCommand.Execute(null);
-            var plainWidth = _viewModel.QrCodeImage.PixelWidth;
-
-            // What the Settings page does on Save.
-            _settings.StyleSettings = new StyleSettings { ChickenShape = true };
             _viewModel.GenerateQrCodeCommand.Execute(null);
 
             Assert.Multiple(() =>
             {
-                Assert.That(_viewModel.QrCodeImage.PixelWidth, Is.GreaterThan(plainWidth));
-                Assert.That(_viewModel.QrCodeImage.PixelWidth, Is.Not.EqualTo(_viewModel.QrCodeImage.PixelHeight));
-                Assert.That(SavedFiles().Select(file => QrCodeGeneratorServiceTests.Decode(File.ReadAllBytes(file))), Is.All.EqualTo("https://example.com"));
+                Assert.That(_viewModel.ShowsStyles, Is.False);
+                Assert.That(_viewModel.SelectedStyle, Is.Null);
+                Assert.That(_viewModel.QrCodeImage.PixelWidth, Is.EqualTo(_viewModel.QrCodeImage.PixelHeight));
+            });
+        }
+
+        [Test]
+        public void CustomCodesPage_OffersKurkodAndDrawsAScannableChicken()
+        {
+            var custom = new CustomCodesViewModel(_dialogs, new QrCodeGeneratorService(), new FakeLoggingService(), _settings)
+            {
+                QrCodeContent = "https://example.com",
+                UseExactPixelSize = true,
+                SelectedPixelsPerModule = 6
+            };
+
+            custom.GenerateQrCodeCommand.Execute(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(custom.ShowsStyles, Is.True);
+                Assert.That(custom.AvailableStyles.Select(style => style.Style), Does.Contain(EnumQrStyle.Kurkod));
+                Assert.That(custom.SelectedStyle.Style, Is.EqualTo(EnumQrStyle.Kurkod));
+                Assert.That(custom.QrCodeImage.PixelWidth, Is.Not.EqualTo(custom.QrCodeImage.PixelHeight), "a chicken is not square");
+                Assert.That(QrCodeGeneratorServiceTests.Decode(File.ReadAllBytes(SavedFiles().Single())), Is.EqualTo("https://example.com"));
             });
         }
 

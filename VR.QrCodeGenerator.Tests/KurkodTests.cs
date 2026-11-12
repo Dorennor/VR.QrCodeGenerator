@@ -21,7 +21,7 @@ namespace VR.QrCodeGenerator.Tests
 
         private readonly QrCodeGeneratorService _service = new QrCodeGeneratorService();
 
-        private static QrCodeOptions Chicken(int? pixelsPerModule = 8) => new QrCodeOptions { ChickenShape = true, PixelsPerModule = pixelsPerModule };
+        private static QrCodeOptions Chicken(int? pixelsPerModule = 8) => new QrCodeOptions { Style = EnumQrStyle.Kurkod, PixelsPerModule = pixelsPerModule };
 
         [TestCase("Hi")]
         [TestCase(Url)]

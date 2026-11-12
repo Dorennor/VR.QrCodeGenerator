@@ -1,5 +1,7 @@
 ﻿using QRCoder;
 
+using VR.QrCodeGenerator.Model.Enums;
+
 namespace VR.QrCodeGenerator.Model.Models
 {
     public class QrCodeOptions
@@ -19,10 +21,10 @@ namespace VR.QrCodeGenerator.Model.Models
         public bool DrawQuietZones { get; set; } = true;
 
         /// <summary>
-        /// Draws a chicken around the QR code ("Kurkod"). The QR code itself is left untouched, so it scans as usual;
-        /// the image is no longer square.
+        /// Classic, or a custom style such as Kurkod (a chicken drawn around the code). Custom styles leave the QR code
+        /// itself untouched, so it scans as usual, but the image may no longer be square.
         /// </summary>
-        public bool ChickenShape { get; set; }
+        public EnumQrStyle Style { get; set; } = EnumQrStyle.Classic;
 
         public int Height { get; set; } = 500;
 

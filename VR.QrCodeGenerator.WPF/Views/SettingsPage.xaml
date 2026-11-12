@@ -19,7 +19,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="Settings" />
-                    <TextBlock Style="{StaticResource PageDescriptionTextStyle}" Text="QR code style, output folder and logging. Saved to your user profile (%LOCALAPPDATA%\VR.QrCodeGenerator) and applied right away." />
+                    <TextBlock Style="{StaticResource PageDescriptionTextStyle}" Text="Output folder and logging. Saved to your user profile (%LOCALAPPDATA%\VR.QrCodeGenerator) and applied right away." />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Style="{StaticResource PageHeaderCommandsStyle}">
                     <ui:Button Command="{Binding LoadCommand}"
@@ -37,14 +37,6 @@
             <TextBlock Margin="1,4,0,0"
                        Style="{StaticResource CaptionTextStyle}"
                        Text="{Binding StatusMessage}" />
-
-            <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Style" />
-
-            <controls:SettingsCard Description="Draws a chicken around every QR code, like the Kurkod meme. The code itself is untouched and still scans; each result is checked before it is shown."
-                                   Header="Kurkod (chicken-shaped QR codes)"
-                                   Icon="{ui:SymbolIcon FoodEgg24}">
-                <ui:ToggleSwitch IsChecked="{Binding ChickenShape}" />
-            </controls:SettingsCard>
 
             <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Output" />
 

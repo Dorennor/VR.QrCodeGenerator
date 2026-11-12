@@ -3,7 +3,5 @@
     public class Settings
     {
         public LoggingSettings LoggingSettings { get; set; } = new LoggingSettings();
-        public PathsSettings PathsSettings { get; set; } = new PathsSettings();
-        public StyleSettings StyleSettings { get; set; } = new StyleSettings();
-    }
+        public PathsSettings PathsSettings { get; set; } = new PathsSettings();    }
 }

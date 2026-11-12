@@ -24,8 +24,8 @@ Dependencies run in one direction: WPF -> ViewModel -> Service -> Model.
 | --- | --- |
 | `VR.QrCodeGenerator.Model` | `QrCodeOptions`, `EnumContentType` (Uri, Text), `EnumImageFormat` (Png, Jpg, Svg), settings classes |
 | `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
-| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `SettingsViewModel`: the Settings page |
-| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Views/GeneratorPage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
+| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `CustomCodesViewModel`: the same plus a list of styles. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
+| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout both generator pages host), `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
 | `VR.QrCodeGenerator.Tests` | Service tests (formats, scanning, size limits) and view model tests (command states, error paths) |
 
 ## How generating works
@@ -44,9 +44,21 @@ Output details:
 - **SVG:** a true vector image built from the QR matrix, with the same width and height as the other formats.
 - **All formats render the same module matrix** (`QrCodeGeneratorService.BuildModules`), which is not always square, so the image keeps its aspect ratio and gets margin instead of being stretched.
 
+### Custom codes and styles
+
+The **Custom codes** tab is the generator with a **Style** combobox. It has its own `CustomCodesViewModel`, so its content, options and preview are separate from the Generator tab. The chosen style goes to `QrCodeOptions.Style` (`EnumQrStyle`), and `QrCodeGeneratorService` runs the matching `IQrStyle` from `Service/Styles/QrStyles` on the module matrix before rendering.
+
+To add a style:
+
+1. Add a value to `EnumQrStyle`.
+2. Write an `IQrStyle` in `Service/Styles` that returns the final module matrix. Leave the code's own modules unchanged and check that the result scans, as `KurkodBuilder` does.
+3. Register it in `QrStyles`.
+4. Add a `QrStyleOption` (name and description) to `CustomCodesViewModel.Styles`.
+5. Add tests like `KurkodTests`.
+
 ### Kurkod (chicken-shaped QR codes)
 
-`StyleSettings.ChickenShape` (Settings page, off by default) sets `QrCodeOptions.ChickenShape`. `KurkodBuilder` then draws a chicken around the code: textured head, neck, tail and rounded body with a dark outline, solid beak, wattle, comb and legs, and an eye (a dark pupil in a light square).
+The first custom style. `KurkodBuilder` draws a chicken around the code: textured head, neck, tail and rounded body with a dark outline, solid beak, wattle, comb and legs, and an eye (a dark pupil in a light square).
 
 - The QR code's own modules are never changed, so no error correction is spent.
 - Scanners need light space beside the three finder patterns, so the drawing keeps a gap of 2 modules there (3 if needed). Each result is decoded with ZXing (`TryHarder` off) before it is used. If none scans, the fallback keeps a full 4-module quiet zone around the code, which is standard and always scans. In tests, 300 varied contents all scanned with the smallest gap.

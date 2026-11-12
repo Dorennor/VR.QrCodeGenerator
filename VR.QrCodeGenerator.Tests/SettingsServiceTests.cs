@@ -38,7 +38,6 @@ namespace VR.QrCodeGenerator.Tests
                 Assert.That(settings.LoggingSettings.File, Is.True);
                 Assert.That(settings.LoggingSettings.Debug, Is.False);
                 Assert.That(settings.PathsSettings.UseCustomPath, Is.False);
-                Assert.That(settings.StyleSettings.ChickenShape, Is.False, "Kurkod is off by default");
             });
         }
 
@@ -50,8 +49,7 @@ namespace VR.QrCodeGenerator.Tests
             service.Save(new Settings
             {
                 LoggingSettings = new LoggingSettings { File = false, Debug = true, Console = true },
-                PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = @"D:\QR" },
-                StyleSettings = new StyleSettings { ChickenShape = true }
+                PathsSettings = new PathsSettings { UseCustomPath = true, OutputPath = @"D:\QR" }
             });
 
             var loaded = service.Load();
@@ -64,8 +62,19 @@ namespace VR.QrCodeGenerator.Tests
                 Assert.That(loaded.LoggingSettings.Console, Is.True);
                 Assert.That(loaded.PathsSettings.UseCustomPath, Is.True);
                 Assert.That(loaded.PathsSettings.OutputPath, Is.EqualTo(@"D:\QR"));
-                Assert.That(loaded.StyleSettings.ChickenShape, Is.True);
             });
+        }
+
+        [Test]
+        public void Load_FileFromOlderVersionWithKurkodSetting_StillLoads()
+        {
+            // The Kurkod switch lived in Settings before it moved to the Custom codes page.
+            Directory.CreateDirectory(Path.GetDirectoryName(_settingsFile));
+            File.WriteAllText(_settingsFile, """{ "PathsSettings": { "UseCustomPath": true, "OutputPath": "D:\\QR" }, "StyleSettings": { "ChickenShape": true } }""");
+
+            var settings = new SettingsService(_settingsFile, _legacyFile).Load();
+
+            Assert.That(settings.PathsSettings.OutputPath, Is.EqualTo(@"D:\QR"));
         }
 
         [Test]

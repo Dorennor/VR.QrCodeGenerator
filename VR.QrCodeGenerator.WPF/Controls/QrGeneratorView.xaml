@@ -1,0 +1,342 @@
+<UserControl x:Class="VR.QrCodeGenerator.WPF.Controls.QrGeneratorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:VR.QrCodeGenerator.WPF.Controls"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             d:DesignHeight="800"
+             d:DesignWidth="1000"
+             mc:Ignorable="d">
+    <!--  The generator layout, shared by the Generator and Custom codes pages. The view model decides the title and whether styles are offered.  -->
+    <Grid Margin="36,24,36,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="24" />
+            <ColumnDefinition Width="420" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3">
+            <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="{Binding PageTitle}" />
+            <TextBlock Style="{StaticResource PageDescriptionTextStyle}" Text="{Binding PageDescription}" />
+        </StackPanel>
+
+        <!--  Left: what to encode and the result.  -->
+        <Grid Grid.Row="1" Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Style="{StaticResource SectionHeaderTextStyle}" Text="Content" />
+
+            <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox Name="ContentOptionsComboBox"
+                              Grid.Column="0"
+                              Width="96"
+                              Margin="0,0,8,0"
+                              VerticalAlignment="Center"
+                              SelectedItem="{Binding SelectedContentType}"
+                              ToolTip="Uri must be a valid http or https link. Text can be anything." />
+
+                    <ui:TextBox Name="UrlTextBox"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                PlaceholderText="Enter a link or text"
+                                Text="{Binding QrCodeContent, UpdateSourceTrigger=PropertyChanged}">
+                        <ui:TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding GenerateQrCodeCommand}" />
+                        </ui:TextBox.InputBindings>
+                    </ui:TextBox>
+
+                    <ui:Button Name="GenerateQrCodeButton"
+                               Grid.Column="2"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Stretch"
+                               Appearance="Primary"
+                               Command="{Binding GenerateQrCodeCommand}"
+                               Content="Generate"
+                               Icon="{ui:SymbolIcon QrCode24}"
+                               ToolTip="Generate the QR code and save it to the output folder" />
+                </Grid>
+            </Border>
+
+            <TextBlock Grid.Row="2" Style="{StaticResource SectionHeaderTextStyle}" Text="Preview" />
+
+            <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}">
+                <Grid>
+                    <Image x:Name="QrCodeImage"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Source="{Binding QrCodeImage}"
+                           Stretch="Uniform"
+                           StretchDirection="DownOnly" />
+
+                    <!--  Empty state: shown until a QR code is generated and again after Reset.  -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Source, ElementName=QrCodeImage}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <ui:SymbolIcon HorizontalAlignment="Center"
+                                       FontSize="48"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                       Symbol="QrCode24" />
+                        <TextBlock Margin="0,8,0,0"
+                                   HorizontalAlignment="Center"
+                                   Style="{StaticResource CaptionTextStyle}"
+                                   Text="Your QR code will appear here" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Name="StatusText"
+                           Margin="1,8,12,0"
+                           VerticalAlignment="Center"
+                           Style="{StaticResource CaptionTextStyle}"
+                           Text="{Binding StatusMessage}"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="NoWrap"
+                           ToolTip="{Binding StatusMessage}" />
+
+                <StackPanel Grid.Column="1" Style="{StaticResource ActionBarPanelStyle}">
+                    <ui:Button Name="CopyToClipboardButton"
+                               Command="{Binding CopyToClipboardCommand}"
+                               Content="Copy to clipboard"
+                               Icon="{ui:SymbolIcon Copy24}" />
+                    <ui:Button Name="ResetQrCodeButton"
+                               Margin="8,0,0,0"
+                               Command="{Binding ResetQrCodeCommand}"
+                               Content="Reset"
+                               Icon="{ui:SymbolIcon ArrowReset24}" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!--  Right: options.  -->
+        <ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,12,0">
+                <!--  Custom codes only: the pages without styles hide this section.  -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowsStyles}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Style" />
+
+                    <controls:SettingsCard Description="{Binding SelectedStyle.Description}"
+                                           Header="Custom style"
+                                           Icon="{ui:SymbolIcon Sparkle24}"
+                                           IsStacked="True">
+                        <ComboBox Name="StyleComboBox"
+                                  DisplayMemberPath="Name"
+                                  ItemsSource="{Binding AvailableStyles}"
+                                  SelectedItem="{Binding SelectedStyle}" />
+                    </controls:SettingsCard>
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Appearance" />
+
+                <controls:SettingsCard Description="Higher values survive more damage but make the code denser."
+                                       Header="Error correction"
+                                       Icon="{ui:SymbolIcon ShieldCheckmark24}"
+                                       IsStacked="True">
+                    <ComboBox Name="EccComboBox"
+                              SelectedIndex="2"
+                              SelectedValue="{Binding SelectedEccTag}"
+                              SelectedValuePath="Tag">
+                        <ComboBoxItem Content="Low (7%)" Tag="L" />
+                        <ComboBoxItem Content="Medium (15%)" Tag="M" />
+                        <ComboBoxItem Content="Quality (25%)" Tag="Q" />
+                        <ComboBoxItem Content="High (30%)" Tag="H" />
+                    </ComboBox>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Description="Final image size in pixels."
+                                       Header="QR code size"
+                                       Icon="{ui:SymbolIcon Resize24}"
+                                       IsEnabled="{Binding UseImageSize}"
+                                       IsStacked="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{StaticResource FieldLabelTextStyle}" Text="Height" />
+                            <ui:NumberBox ClearButtonEnabled="False"
+                                          LargeChange="100"
+                                          MaxDecimalPlaces="0"
+                                          Maximum="5000"
+                                          Minimum="10"
+                                          SmallChange="10"
+                                          Value="{Binding QrCodeHeight, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Style="{StaticResource FieldLabelTextStyle}" Text="Width" />
+                            <ui:NumberBox ClearButtonEnabled="False"
+                                          LargeChange="100"
+                                          MaxDecimalPlaces="0"
+                                          Maximum="5000"
+                                          Minimum="10"
+                                          SmallChange="10"
+                                          Value="{Binding QrCodeWidth, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Description="Every QR square gets exactly this many pixels, for the sharpest result. Replaces Height and Width."
+                                       Header="Exact pixel size"
+                                       Icon="{ui:SymbolIcon Grid24}"
+                                       IsStacked="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="36" />
+                        </Grid.ColumnDefinitions>
+                        <ui:ToggleSwitch Name="ExactPixelSizeSwitch"
+                                         Margin="0,0,12,0"
+                                         VerticalAlignment="Center"
+                                         IsChecked="{Binding UseExactPixelSize}" />
+                        <Slider Name="PixelSizeSlider"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                IsEnabled="{Binding UseExactPixelSize}"
+                                IsSnapToTickEnabled="True"
+                                Maximum="50"
+                                Minimum="1"
+                                TickFrequency="1"
+                                Value="{Binding SelectedPixelsPerModule}" />
+                        <TextBlock Grid.Column="2"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextStyle}"
+                                   Text="{Binding Value, ElementName=PixelSizeSlider}" />
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Header="QR code color" Icon="{ui:SymbolIcon Color24}">
+                    <Grid>
+                        <ToggleButton x:Name="FgColorButton" ToolTip="Choose the QR code color">
+                            <Border Style="{StaticResource ColorSwatchBorderStyle}">
+                                <Border.Background>
+                                    <SolidColorBrush Color="{Binding SelectedForegroundColor}" />
+                                </Border.Background>
+                            </Border>
+                        </ToggleButton>
+                        <Popup AllowsTransparency="True"
+                               IsOpen="{Binding IsChecked, ElementName=FgColorButton}"
+                               Placement="Left"
+                               PlacementTarget="{Binding ElementName=FgColorButton}"
+                               StaysOpen="False">
+                            <Border Style="{StaticResource FlyoutBorderStyle}">
+                                <StackPanel>
+                                    <xctk:ColorCanvas Background="Transparent"
+                                                      BorderThickness="0"
+                                                      SelectedColor="{Binding SelectedForegroundColor, Mode=TwoWay}"
+                                                      UsingAlphaChannel="False" />
+                                    <ui:Button x:Name="FgColorPickerClose"
+                                               Margin="0,8,0,0"
+                                               HorizontalAlignment="Right"
+                                               Appearance="Primary"
+                                               Click="FgColorPickerClose_OnClick"
+                                               Content="OK" />
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Header="Background color" Icon="{ui:SymbolIcon PaintBucket24}">
+                    <Grid>
+                        <ToggleButton x:Name="BgColorButton" ToolTip="Choose the background color">
+                            <Border Style="{StaticResource ColorSwatchBorderStyle}">
+                                <Border.Background>
+                                    <SolidColorBrush Color="{Binding SelectedBackgroundColor}" />
+                                </Border.Background>
+                            </Border>
+                        </ToggleButton>
+                        <Popup AllowsTransparency="True"
+                               IsOpen="{Binding IsChecked, ElementName=BgColorButton}"
+                               Placement="Left"
+                               PlacementTarget="{Binding ElementName=BgColorButton}"
+                               StaysOpen="False">
+                            <Border Style="{StaticResource FlyoutBorderStyle}">
+                                <StackPanel>
+                                    <xctk:ColorCanvas Background="Transparent"
+                                                      BorderThickness="0"
+                                                      SelectedColor="{Binding SelectedBackgroundColor, Mode=TwoWay}"
+                                                      UsingAlphaChannel="False" />
+                                    <ui:Button x:Name="BgColorPickerClose"
+                                               Margin="0,8,0,0"
+                                               HorizontalAlignment="Right"
+                                               Appearance="Primary"
+                                               Click="BgColorPickerClose_OnClick"
+                                               Content="OK" />
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </controls:SettingsCard>
+
+                <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Output" />
+
+                <controls:SettingsCard Header="Image format" Icon="{ui:SymbolIcon Image24}">
+                    <ComboBox Name="FileFormatOptionsComboBox"
+                              Width="120"
+                              SelectedItem="{Binding SelectedImageFormat}" />
+                </controls:SettingsCard>
+
+                <StackPanel Style="{StaticResource ActionBarPanelStyle}">
+                    <ui:Button Name="OpenOutputFolderButton"
+                               Command="{Binding OpenOutputFolderCommand}"
+                               Content="Open output folder"
+                               Icon="{ui:SymbolIcon FolderOpen24}" />
+                    <ui:Button Name="SaveQrCode"
+                               Margin="8,0,0,0"
+                               Appearance="Primary"
+                               Command="{Binding SaveQrCodeCommand}"
+                               Content="Save QR code"
+                               Icon="{ui:SymbolIcon Save24}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

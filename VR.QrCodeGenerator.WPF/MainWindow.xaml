@@ -46,6 +46,13 @@
                         <ui:SymbolIcon Symbol="QrCode24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
+                <ui:NavigationViewItem Content="Custom codes"
+                                       TargetPageType="{x:Type views:CustomCodesPage}"
+                                       ToolTip="QR codes in a custom style, such as Kurkod">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="Sparkle24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.FooterMenuItems>
                 <ui:NavigationViewItem Content="Settings"

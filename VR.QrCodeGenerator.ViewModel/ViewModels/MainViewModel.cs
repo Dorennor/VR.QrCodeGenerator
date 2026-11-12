@@ -85,6 +85,23 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             Initialize();
         }
 
+        public virtual string PageTitle => "QR Code Generator";
+
+        public virtual string PageDescription => "Turn text or a link into a QR code, then copy or save it.";
+
+        /// <summary>
+        /// The styles offered on this page. Empty here: plain QR codes only. See <see cref="CustomCodesViewModel"/>.
+        /// </summary>
+        public virtual IReadOnlyList<QrStyleOption> AvailableStyles { get; } = [];
+
+        public bool ShowsStyles => AvailableStyles.Count > 0;
+
+        /// <summary>
+        /// Used from the next Generate on; null means the classic QR code.
+        /// </summary>
+        [ObservableProperty]
+        private QrStyleOption _selectedStyle;
+
         private void Initialize()
         {
             SelectedPixelsPerModule = 20;
@@ -129,7 +146,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 BackgroundColor = [SelectedBackgroundColor.R, SelectedBackgroundColor.G, SelectedBackgroundColor.B],
                 Height = QrCodeHeight,
                 Width = QrCodeWidth,
-                ChickenShape = _settings?.StyleSettings?.ChickenShape ?? false
+                Style = SelectedStyle?.Style ?? EnumQrStyle.Classic
             };
 
             try

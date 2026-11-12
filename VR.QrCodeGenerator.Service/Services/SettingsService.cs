@@ -43,8 +43,6 @@ namespace VR.QrCodeGenerator.Service.Services
 
                     settings.LoggingSettings ??= new LoggingSettings();
                     settings.PathsSettings ??= new PathsSettings();
-                    settings.StyleSettings ??= new StyleSettings();
-
                     return settings;
                 }
             }
