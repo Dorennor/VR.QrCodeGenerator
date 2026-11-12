@@ -15,7 +15,9 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         /// </summary>
         public static IReadOnlyList<QrStyleOption> Styles { get; } =
         [
-            new(EnumQrStyle.Kurkod, "Kurkod 🐔", "A chicken drawn around the QR code, like the Kurkod meme. The code itself is untouched and every result is checked to scan.")
+            new(EnumQrStyle.Kurkod, "Kurkod 🐔", "A chicken drawn around the QR code, like the Kurkod meme. The code itself is untouched and every result is checked to scan."),
+            new(EnumQrStyle.Cat, "Cat 🐱", "A sitting cat with pointed ears, whiskers and a curled tail. The code is its body and still scans."),
+            new(EnumQrStyle.Dog, "Dog 🐶", "A sitting dog with floppy ears, a muzzle and a wagging tail. The code is its body and still scans.")
         ];
 
         public CustomCodesViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)

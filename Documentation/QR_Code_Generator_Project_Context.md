@@ -23,7 +23,7 @@ Dependencies run in one direction: WPF -> ViewModel -> Service -> Model.
 | Project | Contents |
 | --- | --- |
 | `VR.QrCodeGenerator.Model` | `QrCodeOptions`, `EnumContentType` (Uri, Text), `EnumImageFormat` (Png, Jpg, Svg), settings classes |
-| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
+| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService` (the pipeline), `Generation/` (encoder, matrix helpers), `Styles/` (styles and shapes), `Rendering/` (PNG/JPG/SVG), `Verification/QrScanVerifier`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
 | `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `CustomCodesViewModel`: the same plus a list of styles. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
 | `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout both generator pages host), `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
 | `VR.QrCodeGenerator.Tests` | Service tests (formats, scanning, size limits) and view model tests (command states, error paths) |
@@ -40,30 +40,54 @@ Output details:
 - **Two sizing modes:**
   - **Height and Width (default):** the image has exactly that size. The code is scaled with nearest neighbour sampling, which keeps edges sharp, but squares can differ by a pixel when the size does not divide evenly. A QR code must stay square to scan, so if the two values differ the code is the largest centered square and the rest is background. An image with fewer pixels than the code has modules is refused with `QrCodeTooSmallException`.
   - **Exact pixel size:** `QrCodeOptions.PixelsPerModule` is set, so every square is exactly that many pixels and no scaling happens. The image size is modules x pixels, so it depends on the content, and Height and Width are ignored and disabled. The status line reports the resulting size.
-- **PNG and JPG:** drawn by QRCoder, then composed and encoded by SkiaSharp.
-- **SVG:** a true vector image built from the QR matrix, with the same width and height as the other formats.
-- **All formats render the same module matrix** (`QrCodeGeneratorService.BuildModules`), which is not always square, so the image keeps its aspect ratio and gets margin instead of being stretched.
+- **PNG and JPG:** `RasterImageRenderer` (SkiaSharp). **SVG:** `SvgImageRenderer`, a true vector image with the same width and height as the other formats.
+- **All formats render the same module matrix**, which is not always square, so the image keeps its aspect ratio (`ImageLayout.Fit`) and gets margin instead of being stretched.
 
-### Custom codes and styles
+### The generation pipeline (Service project)
 
-The **Custom codes** tab is the generator with a **Style** combobox. It has its own `CustomCodesViewModel`, so its content, options and preview are separate from the Generator tab. The chosen style goes to `QrCodeOptions.Style` (`EnumQrStyle`), and `QrCodeGeneratorService` runs the matching `IQrStyle` from `Service/Styles/QrStyles` on the module matrix before rendering.
+`QrCodeGeneratorService.Generate` runs four steps, each replaceable on its own:
+
+| Step | Code | Does |
+| --- | --- | --- |
+| 1. Encode | `Generation/QrMatrixEncoder` | QRCoder → `bool[,]` module matrix (true = dark), no quiet zone |
+| 2. Style | `Styles/IQrStyle` | The matrix → the final drawing. `ClassicStyle` returns it as is |
+| 3. Quiet zone | `Generation/ModuleMatrix.AddMargin` | 4 light modules around, when `DrawQuietZones` |
+| 4. Render | `Rendering/IQrImageRenderer` | One renderer per `EnumImageFormat` |
+
+`Generate(content, options, format)` takes the built-in style from `options.Style` via `QrStyles`. `Generate(content, options, IQrStyle style, format)` takes a style object made at runtime.
+
+### Custom codes and shape styles
+
+The **Custom codes** tab is the generator with a **Style** combobox (Kurkod, Cat, Dog). It has its own `CustomCodesViewModel`, so its content, options and preview are separate from the Generator tab.
+
+All three animals are a `ShapeStyle` with an `IShape` (`Styles/Shapes`). A shape only answers "what goes at point (u, v)?", in code widths: (0, 0)–(1, 1) is the code itself. The possible parts are `None`, `Textured` (QR-like texture with a dark outline), `Solid`, or `Light` (with a dark outline). A shape also gives its margins and eye positions. `ShapeGeometry` has the hit tests (circle, ellipse, polygon, thick polyline, grid-snapped band). `ShapedCodeBuilder` does everything else:
+
+- The QR code's own modules are never changed, so no error correction is spent.
+- **Finder gap:** a 2-module light gap is kept beside the three finder patterns, where scanners look for them.
+- **No fake finders:** the texture never forms a solid 3 x 3 dark block (the centre of a finder pattern). Random look-alikes once made a scanner lock onto the wrong spot.
+- **Checked before use:** `QrScanVerifier` decodes every result with ZXing (TryHarder off) at 3, 5 and 8 px per module, because decoding depends on the pixel size. On failure the builder tries other textures, then a 3-module gap, then a full 4-module quiet zone. If nothing scans, the plain code is returned, so a drawing that does not scan is never returned. In a sweep of 120 contents x 3 animals x 5 pixel sizes (2 to 12 px), every image decoded, none fell back to the plain code, and generating took about 14 ms.
+- **Stable texture:** it is seeded from a stable hash of the content, so the preview and the saved file are identical.
+- **Small codes:** shapes are in fractions of the code's size, so short content (21 to 25 modules) gives a blockier animal with less readable faces than long content.
 
 To add a style:
 
 1. Add a value to `EnumQrStyle`.
-2. Write an `IQrStyle` in `Service/Styles` that returns the final module matrix. Leave the code's own modules unchanged and check that the result scans, as `KurkodBuilder` does.
-3. Register it in `QrStyles`.
+2. Write an `IShape` in `Styles/Shapes`, like `CatShape`. For something that is not a shape around the code, write an `IQrStyle` instead.
+3. Register `new ShapeStyle(EnumQrStyle.X, new XShape())` in `QrStyles`.
 4. Add a `QrStyleOption` (name and description) to `CustomCodesViewModel.Styles`.
-5. Add tests like `KurkodTests`.
 
-### Kurkod (chicken-shaped QR codes)
+`ShapeStyleTests` picks up every value of `EnumQrStyle` automatically. It checks scanning (all error correction levels, formats, pixel sizes and many contents), size, determinism, registration, and that the style is offered on the page.
 
-The first custom style. `KurkodBuilder` draws a chicken around the code: textured head, neck, tail and rounded body with a dark outline, solid beak, wattle, comb and legs, and an eye (a dark pupil in a light square).
+### Planned: drawing editor
 
-- The QR code's own modules are never changed, so no error correction is spent.
-- Scanners need light space beside the three finder patterns, so the drawing keeps a gap of 2 modules there (3 if needed). Each result is decoded with ZXing (`TryHarder` off) before it is used. If none scans, the fallback keeps a full 4-module quiet zone around the code, which is standard and always scans. In tests, 300 varied contents all scanned with the smallest gap.
-- The texture is seeded with a stable hash of the content, so the preview and the saved file are identical.
-- Shapes are defined in fractions of the code's size, so small codes (21 modules) get a blockier chicken than long ones.
+The idea is a canvas where the user draws black lines with a fixed pen and gets a QR code shaped like the drawing. The pipeline is built for it:
+
+- The drawing becomes a `bool[,]` mask of the canvas pixels.
+- A new `MaskShape : IShape` maps (u, v) to a mask pixel, for example drawn pixels `Solid`, or `Textured` for a QR-like look. It also places the code inside the drawing, with margins from where the code sits on the canvas.
+- The view model passes `new ShapeStyle(..., new MaskShape(mask))` to `Generate(content, options, IQrStyle style, ...)`.
+- `ShapedCodeBuilder` then applies the same finder gaps, texture rules and scan check as the animals. `ShapeStyleTests.StyleMadeAtRuntime_IsUsedAndScans` already covers a runtime shape.
+
+Open questions for that feature: where the code goes on the canvas (fixed in the centre, or placed by the user), and how a line wider than one module is drawn.
 
 Save and Copy use what the preview shows, so settings changed since Generate do not affect them until the next Generate. Save does use the currently selected format. Copy always uses the in-memory PNG, whatever format was saved.
 

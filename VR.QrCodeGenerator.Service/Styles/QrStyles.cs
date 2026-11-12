@@ -1,16 +1,20 @@
 using VR.QrCodeGenerator.Model.Enums;
+using VR.QrCodeGenerator.Service.Styles.Shapes;
 
 namespace VR.QrCodeGenerator.Service.Styles
 {
     /// <summary>
-    /// Every style the generator can draw. Register a new <see cref="IQrStyle"/> here.
+    /// The built-in styles, one per <see cref="EnumQrStyle"/>. A style made at runtime (for example from a drawing) is
+    /// passed to IQrCodeGeneratorService.Generate directly instead.
     /// </summary>
     public static class QrStyles
     {
         private static readonly IReadOnlyDictionary<EnumQrStyle, IQrStyle> All = new IQrStyle[]
         {
             new ClassicStyle(),
-            new KurkodStyle()
+            new ShapeStyle(EnumQrStyle.Kurkod, new ChickenShape()),
+            new ShapeStyle(EnumQrStyle.Cat, new CatShape()),
+            new ShapeStyle(EnumQrStyle.Dog, new DogShape())
         }.ToDictionary(style => style.Style);
 
         public static IQrStyle Get(EnumQrStyle style)

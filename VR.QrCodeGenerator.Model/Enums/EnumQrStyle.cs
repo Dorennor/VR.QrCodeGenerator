@@ -1,13 +1,14 @@
 namespace VR.QrCodeGenerator.Model.Enums
 {
     /// <summary>
-    /// How the QR code is drawn. Custom styles keep the code itself intact and decorate the space around it.
-    /// To add one: a value here, an IQrStyle in the Service project registered in QrStyles, and an entry in
-    /// CustomCodesViewModel.Styles.
+    /// The built-in ways to draw a QR code. Custom styles keep the code itself intact and decorate around it.
+    /// To add one, see "Adding a style" in Documentation/QR_Code_Generator_Project_Context.md.
     /// </summary>
     public enum EnumQrStyle
     {
         Classic,
-        Kurkod
+        Kurkod,
+        Cat,
+        Dog
     }
 }

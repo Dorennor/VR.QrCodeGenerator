@@ -8,7 +8,7 @@ A simple WPF desktop app to generate and customize QR codes.
 - Customize size, colors, and error correction level
 - Save as PNG, JPG, or SVG
 - Copy QR codes to clipboard
-- Custom codes tab with fun styles, picked from a list. First one: Kurkod 🐔, a QR code drawn as a chicken like the meme. The code itself stays intact and every result is checked to scan
+- Custom codes tab with fun styles, picked from a list. Kurkod 🐔 (a chicken, like the meme), Cat 🐱 and Dog 🐶. The code itself stays intact and every result is checked to scan
 - Settings page: choose the output folder and logging options, applied without a restart
 - Windows 11 style interface that follows the system light or dark theme
 - Ships as a single portable `.exe`
