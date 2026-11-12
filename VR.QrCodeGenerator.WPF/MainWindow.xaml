@@ -60,6 +60,13 @@
                         <ui:SymbolIcon Symbol="InkStroke24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
+                <ui:NavigationViewItem Content="Picture"
+                                       TargetPageType="{x:Type views:PicturePage}"
+                                       ToolTip="Turn a picture into a QR code">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="Image24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.FooterMenuItems>
                 <ui:NavigationViewItem Content="Settings"

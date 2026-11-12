@@ -7,7 +7,7 @@ using VR.QrCodeGenerator.Service.Generation;
 namespace VR.QrCodeGenerator.Service.Rendering
 {
     /// <summary>
-    /// PNG and JPG through SkiaSharp. The matrix is drawn one pixel per module, then scaled with nearest neighbour
+    /// PNG and JPG through SkiaSharp. The drawing is painted one pixel per cell, then scaled with nearest neighbour
     /// sampling, which keeps the edges of the squares sharp; with an exact pixel size every module is exactly that size.
     /// </summary>
     public sealed class RasterImageRenderer : IQrImageRenderer
@@ -24,23 +24,25 @@ namespace VR.QrCodeGenerator.Service.Rendering
 
         public EnumImageFormat Format { get; }
 
-        public byte[] Render(bool[,] modules, QrCodeOptions options, int width, int height)
+        public byte[] Render(QrDrawing drawing, QrCodeOptions options, int width, int height)
         {
+            var cells = drawing.Cells;
+
             var foreground = new SKColor(options.ForegroundColor[0], options.ForegroundColor[1], options.ForegroundColor[2]);
             var background = new SKColor(options.BackgroundColor[0], options.BackgroundColor[1], options.BackgroundColor[2]);
 
-            using (SKBitmap source = new SKBitmap(modules.Columns(), modules.Rows()))
+            using (SKBitmap source = new SKBitmap(cells.Columns(), cells.Rows()))
             {
-                for (var row = 0; row < modules.Rows(); row++)
+                for (var row = 0; row < cells.Rows(); row++)
                 {
-                    for (var column = 0; column < modules.Columns(); column++)
-                        source.SetPixel(column, row, modules[row, column] ? foreground : background);
+                    for (var column = 0; column < cells.Columns(); column++)
+                        source.SetPixel(column, row, cells[row, column] ? foreground : background);
                 }
 
                 using (SKImage sourceImage = SKImage.FromBitmap(source))
                 using (SKSurface surface = SKSurface.Create(new SKImageInfo(width, height)))
                 {
-                    var (left, top, drawWidth, drawHeight) = ImageLayout.Fit(modules.Columns(), modules.Rows(), width, height);
+                    var (left, top, drawWidth, drawHeight) = ImageLayout.Fit(cells.Columns(), cells.Rows(), width, height);
 
                     surface.Canvas.Clear(background);
                     surface.Canvas.DrawImage(sourceImage, new SKRect(left, top, left + drawWidth, top + drawHeight), new SKSamplingOptions(SKFilterMode.Nearest));

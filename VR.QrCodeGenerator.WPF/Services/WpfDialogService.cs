@@ -22,9 +22,12 @@ namespace VR.QrCodeGenerator.WPF.Services
                 return string.Empty;
         }
 
-        public string OpenFileDialog()
+        public string OpenFileDialog(string filter = null)
         {
             var openFileDialog = new OpenFileDialog();
+
+            if (!string.IsNullOrEmpty(filter))
+                openFileDialog.Filter = filter + "|All files|*.*";
             var result = openFileDialog.ShowDialog();
 
             if (result.HasValue && result.Value)

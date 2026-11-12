@@ -6,7 +6,8 @@ namespace VR.QrCodeGenerator.Service.Interfaces
     {
         string OpenFolderDialog(string initialDirectory = null);
 
-        string OpenFileDialog();
+        /// <param name="filter">A file type filter such as "Pictures|*.png;*.jpg"; null shows all files.</param>
+        string OpenFileDialog(string filter = null);
 
         string SaveFileDialog(string defaultFileName);
 

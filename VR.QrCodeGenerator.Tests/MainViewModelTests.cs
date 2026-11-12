@@ -282,7 +282,7 @@ namespace VR.QrCodeGenerator.Tests
 
             public string OpenFolderDialog(string initialDirectory = null) => string.Empty;
 
-            public string OpenFileDialog() => string.Empty;
+            public string OpenFileDialog(string filter = null) => string.Empty;
 
             public string SaveFileDialog(string defaultFileName) => string.Empty;
 

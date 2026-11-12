@@ -41,19 +41,27 @@ namespace VR.QrCodeGenerator.Service.Services
             if (!Renderers.TryGetValue(format, out var renderer))
                 throw new ArgumentOutOfRangeException(nameof(format), "Image format is not supported!");
 
-            var modules = style.Apply(QrMatrixEncoder.Encode(content, options.EccLevel), content);
+            var drawing = style.Apply(QrMatrixEncoder.Encode(content, options.EccLevel), content);
 
             if (options.DrawQuietZones)
-                modules = ModuleMatrix.AddMargin(modules, QrMatrixEncoder.QuietZoneModules);
+                drawing = drawing.WithMargin(QrMatrixEncoder.QuietZoneModules);
 
-            var width = options.PixelsPerModule * modules.Columns() ?? options.Width;
-            var height = options.PixelsPerModule * modules.Rows() ?? options.Height;
+            int width = options.Width, height = options.Height;
 
-            // Every module needs at least one pixel, or the result could never be scanned.
-            if (width < modules.Columns() || height < modules.Rows())
-                throw new QrCodeTooSmallException(Math.Max(modules.Columns(), modules.Rows()));
+            if (options.PixelsPerModule is int pixelsPerModule)
+            {
+                // Whole pixels per cell keep every square sharp; with finer cells a module is the nearest multiple.
+                var pixelsPerCell = Math.Max(1, (int)Math.Round((double)pixelsPerModule / drawing.CellsPerModule));
 
-            return renderer.Render(modules, options, width, height);
+                width = pixelsPerCell * drawing.Columns;
+                height = pixelsPerCell * drawing.Rows;
+            }
+
+            // Every cell needs at least one pixel, or the result could never be scanned.
+            if (width < drawing.Columns || height < drawing.Rows)
+                throw new QrCodeTooSmallException(Math.Max(drawing.Columns, drawing.Rows));
+
+            return renderer.Render(drawing, options, width, height);
         }
     }
 }

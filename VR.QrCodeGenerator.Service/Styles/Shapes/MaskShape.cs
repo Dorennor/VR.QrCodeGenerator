@@ -1,8 +1,9 @@
 namespace VR.QrCodeGenerator.Service.Styles.Shapes
 {
     /// <summary>
-    /// A shape from a drawing: pen lines become solid, and areas the lines enclose are filled with the QR-like texture.
-    /// The code sits in the centre of the drawing, in a square of <see cref="CodeFraction"/> of its size.
+    /// A shape from a drawing or a picture: the ink (pen lines, or the picture's pixels in the code's color) becomes
+    /// solid or textured, and areas it encloses are filled with the QR-like texture. The code sits in the centre, in a
+    /// square of <see cref="CodeFraction"/> of the shorter side.
     /// </summary>
     /// <remarks>
     /// The code's square counts as a wall when finding enclosed areas, so a head drawn on top of the code fills too.
@@ -23,6 +24,10 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
         private readonly double _codeTop;
         private readonly double _codeSide;
 
+        private readonly ShapePart _inkPart;
+        private readonly bool _codeClosesAreas;
+        private readonly double _largestFilledArea;
+
         // Summed-area tables of the pen lines and the enclosed areas: the coverage of any rectangle in constant time.
         private readonly int[,] _strokeSums;
         private readonly int[,] _enclosedSums;
@@ -30,8 +35,26 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
         /// <param name="strokes">The drawing [row, column], true where the pen drew.</param>
         /// <param name="codeFraction">The side of the code's square, as a share of the drawing's shorter side.</param>
         /// <param name="gapToClose">Gaps in lines up to about twice this many pixels are closed when finding enclosed areas.</param>
-        public MaskShape(bool[,] strokes, double codeFraction, int gapToClose = 6)
+        /// <param name="inkPart">
+        /// How the ink itself is drawn: <see cref="ShapePart.Solid"/> keeps pen lines crisp (drawings);
+        /// <see cref="ShapePart.Textured"/> fills dark areas with the QR-like texture, like the Kurkod body (pictures).
+        /// </param>
+        /// <param name="codeClosesAreas">
+        /// Whether the code's square counts as a wall, so a head drawn on top of the code fills. Off for a picture's
+        /// subject, where it would also close off background, such as the space under an arch.
+        /// </param>
+        /// <param name="largestFilledArea">
+        /// Enclosed areas bigger than this share of the drawing stay empty: 1 fills every enclosed area (outlines);
+        /// a small value fills only holes inside a shape that is already solid (a picture's subject).
+        /// </param>
+        public MaskShape(bool[,] strokes, double codeFraction, int gapToClose = 6, ShapePart inkPart = ShapePart.Solid, bool codeClosesAreas = true, double largestFilledArea = 1)
         {
+            if (inkPart is not (ShapePart.Solid or ShapePart.Textured))
+                throw new ArgumentOutOfRangeException(nameof(inkPart), inkPart, "Ink is drawn solid or textured.");
+
+            _inkPart = inkPart;
+            _codeClosesAreas = codeClosesAreas;
+            _largestFilledArea = largestFilledArea;
             ArgumentNullException.ThrowIfNull(strokes);
 
             if (codeFraction <= 0 || codeFraction > 1)
@@ -82,7 +105,7 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
                 return ShapePart.None;
 
             if (Sum(_strokeSums, x0, y0, x1, y1) >= SolidCoverage * area)
-                return ShapePart.Solid;
+                return _inkPart;
 
             if (Sum(_enclosedSums, x0, y0, x1, y1) >= TexturedCoverage * area)
                 return ShapePart.Textured;
@@ -104,7 +127,7 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
 
             bool InCode(int x, int y) => x >= codeX0 && x < codeX1 && y >= codeY0 && y < codeY1;
 
-            bool Wall(int x, int y) => walls[y, x] || InCode(x, y);
+            bool Wall(int x, int y) => walls[y, x] || (_codeClosesAreas && InCode(x, y));
 
             // Flood fill from every open pixel on the edge: what it reaches is outside.
             var outside = new bool[_height, _width];
@@ -149,7 +172,55 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
                     enclosed[y, x] = !outside[y, x] && !strokes[y, x] && !InCode(x, y);
             }
 
+            if (_largestFilledArea < 1)
+                RemoveAreasLargerThan(enclosed, (int)(_largestFilledArea * _width * _height));
+
             return enclosed;
+        }
+
+        /// <summary>
+        /// Clears every connected area of <paramref name="mask"/> with more than <paramref name="maximumSize"/> pixels.
+        /// </summary>
+        private static void RemoveAreasLargerThan(bool[,] mask, int maximumSize)
+        {
+            int height = mask.GetLength(0), width = mask.GetLength(1);
+            var seen = new bool[height, width];
+            var area = new List<(int X, int Y)>();
+            var queue = new Queue<(int X, int Y)>();
+
+            for (var row = 0; row < height; row++)
+            {
+                for (var column = 0; column < width; column++)
+                {
+                    if (!mask[row, column] || seen[row, column])
+                        continue;
+
+                    area.Clear();
+                    seen[row, column] = true;
+                    queue.Enqueue((column, row));
+
+                    while (queue.Count > 0)
+                    {
+                        var (x, y) = queue.Dequeue();
+                        area.Add((x, y));
+
+                        foreach (var (nx, ny) in new[] { (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1) })
+                        {
+                            if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen[ny, nx] || !mask[ny, nx])
+                                continue;
+
+                            seen[ny, nx] = true;
+                            queue.Enqueue((nx, ny));
+                        }
+                    }
+
+                    if (area.Count > maximumSize)
+                    {
+                        foreach (var (x, y) in area)
+                            mask[y, x] = false;
+                    }
+                }
+            }
         }
 
         private static bool[,] Dilate(bool[,] mask, int radius) => SquareFilter(mask, radius, any: true);

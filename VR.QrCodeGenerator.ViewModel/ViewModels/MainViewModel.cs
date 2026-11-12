@@ -130,9 +130,21 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
 
         private bool HasQrCode() => QrCodeImage != null;
 
+        /// <summary>
+        /// Why this page cannot generate yet (shown as a warning), or null when it can. For example a picture page with
+        /// no picture.
+        /// </summary>
+        protected virtual string GenerateBlockedReason => null;
+
         [RelayCommand(CanExecute = nameof(CanGenerate))]
         public void GenerateQrCode()
         {
+            if (GenerateBlockedReason is { } reason)
+            {
+                _dialogService.ShowWarnMessageBox(reason);
+                return;
+            }
+
             var content = QrCodeContent;
 
             if (SelectedContentType is EnumContentType.Uri)

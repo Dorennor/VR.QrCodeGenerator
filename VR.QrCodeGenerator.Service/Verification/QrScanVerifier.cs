@@ -6,40 +6,43 @@ using ZXing.Common;
 namespace VR.QrCodeGenerator.Service.Verification
 {
     /// <summary>
-    /// Decodes a module matrix the way a scanner would see the saved image, to check that a decorated code still scans.
+    /// Decodes a drawing the way a scanner would see the saved image, to check that a decorated code still scans.
     /// </summary>
     public static class QrScanVerifier
     {
         /// <summary>
         /// Decoding depends on the pixel size (local thresholds, finder search), and a drawing can pass at one size and
-        /// fail at another, so it is checked at small, medium and large module sizes.
+        /// fail at another, so it is checked from small to large module sizes. 12 px caught a code that passed at 3 to 8.
         /// </summary>
-        private static readonly int[] PixelsPerModule = [3, 5, 8];
+        private static readonly int[] PixelsPerModule = [3, 5, 8, 12];
 
         /// <summary>
-        /// True when the matrix, with a standard quiet zone around it, decodes to exactly <paramref name="content"/> at
+        /// True when the drawing, with a standard quiet zone around it, decodes to exactly <paramref name="content"/> at
         /// every checked size. TryHarder stays off, so only results that scan easily pass.
         /// </summary>
-        public static bool Scans(bool[,] modules, string content)
+        public static bool Scans(QrDrawing drawing, string content)
         {
-            var padded = ModuleMatrix.AddMargin(modules, QrMatrixEncoder.QuietZoneModules);
+            var padded = drawing.WithMargin(QrMatrixEncoder.QuietZoneModules);
 
-            return PixelsPerModule.All(scale => Decode(padded, scale) == content);
+            // Whole pixels per cell, as close to each module size as the cells allow; each size checked once.
+            var scales = PixelsPerModule.Select(pixels => Math.Max(1, (int)Math.Round((double)pixels / drawing.CellsPerModule))).Distinct();
+
+            return scales.All(scale => Decode(padded.Cells, scale) == content);
         }
 
-        private static string Decode(bool[,] modules, int scale)
+        private static string Decode(bool[,] cells, int scale)
         {
-            var width = modules.Columns() * scale;
-            var height = modules.Rows() * scale;
+            var width = cells.Columns() * scale;
+            var height = cells.Rows() * scale;
             var luminance = new byte[width * height];
 
             Array.Fill(luminance, (byte)255);
 
-            for (var row = 0; row < modules.Rows(); row++)
+            for (var row = 0; row < cells.Rows(); row++)
             {
-                for (var column = 0; column < modules.Columns(); column++)
+                for (var column = 0; column < cells.Columns(); column++)
                 {
-                    if (!modules[row, column])
+                    if (!cells[row, column])
                         continue;
 
                     for (var y = 0; y < scale; y++)

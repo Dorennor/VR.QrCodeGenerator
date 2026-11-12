@@ -23,9 +23,9 @@ Dependencies run in one direction: WPF -> ViewModel -> Service -> Model.
 | Project | Contents |
 | --- | --- |
 | `VR.QrCodeGenerator.Model` | `QrCodeOptions`, `EnumContentType` (Uri, Text), `EnumImageFormat` (Png, Jpg, Svg), settings classes |
-| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService` (the pipeline), `Generation/` (encoder, matrix helpers), `Styles/` (styles and shapes), `Rendering/` (PNG/JPG/SVG), `Verification/QrScanVerifier`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
-| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `CustomCodesViewModel`: the same plus a list of styles. `DrawingCodesViewModel`: the same with the user's drawing. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
-| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout the three generator pages host), `Controls/DrawingCanvas`, `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/DrawingPage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
+| `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService` (the pipeline), `Generation/` (encoder, matrix helpers), `Styles/` (styles and shapes), `Pictures/QrPicture`, `Rendering/` (PNG/JPG/SVG), `Verification/QrScanVerifier`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
+| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `CustomCodesViewModel`: the same plus a list of styles. `DrawingCodesViewModel`: the same with the user's drawing. `PictureCodesViewModel`: the same with a picture as the template. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
+| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout the four generator pages host), `Controls/DrawingCanvas`, `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/DrawingPage`, `Views/PicturePage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
 | `VR.QrCodeGenerator.Tests` | Service tests (formats, scanning, size limits) and view model tests (command states, error paths) |
 
 ## How generating works
@@ -50,9 +50,9 @@ Output details:
 | Step | Code | Does |
 | --- | --- | --- |
 | 1. Encode | `Generation/QrMatrixEncoder` | QRCoder → `bool[,]` module matrix (true = dark), no quiet zone |
-| 2. Style | `Styles/IQrStyle` | The matrix → the final drawing. `ClassicStyle` returns it as is |
-| 3. Quiet zone | `Generation/ModuleMatrix.AddMargin` | 4 light modules around, when `DrawQuietZones` |
-| 4. Render | `Rendering/IQrImageRenderer` | One renderer per `EnumImageFormat` |
+| 2. Style | `Styles/IQrStyle` | The matrix → a `QrDrawing`: dark and light cells, with `CellsPerModule` 1, or 2 to 3 for a detailed shape. `ClassicStyle` returns the matrix as is |
+| 3. Quiet zone | `QrDrawing.WithMargin` | 4 light modules around, when `DrawQuietZones` |
+| 4. Render | `Rendering/IQrImageRenderer` | One renderer per `EnumImageFormat`, drawing cells. With an exact pixel size, a cell gets `round(pixels / cells per module)` pixels |
 
 `Generate(content, options, format)` takes the built-in style from `options.Style` via `QrStyles`. `Generate(content, options, IQrStyle style, format)` takes a style object made at runtime.
 
@@ -65,7 +65,7 @@ All three animals are a `ShapeStyle` with an `IShape` (`Styles/Shapes`). A shape
 - The QR code's own modules are never changed, so no error correction is spent.
 - **Finder gap:** a 2-module light gap is kept beside the three finder patterns, where scanners look for them.
 - **No fake finders:** the texture never forms a solid 3 x 3 dark block (the centre of a finder pattern). Random look-alikes once made a scanner lock onto the wrong spot.
-- **Checked before use:** `QrScanVerifier` decodes every result with ZXing (TryHarder off) at 3, 5 and 8 px per module, because decoding depends on the pixel size. On failure the builder tries other textures, then a 3-module gap, then a full 4-module quiet zone. If nothing scans, the plain code is returned, so a drawing that does not scan is never returned. In a sweep of 120 contents x 3 animals x 5 pixel sizes (2 to 12 px), every image decoded, none fell back to the plain code, and generating took about 14 ms.
+- **Checked before use:** `QrScanVerifier` decodes every result with ZXing (TryHarder off) at 3, 5, 8 and 12 px per module, because decoding depends on the pixel size. On failure the builder tries other textures, then a 3-module gap, then a full 4-module quiet zone. If nothing scans, the plain code is returned, so a drawing that does not scan is never returned. In a sweep of 120 contents x 3 animals x 5 pixel sizes (2 to 12 px), every image decoded, none fell back to the plain code, and generating took about 14 ms.
 - **Stable texture:** it is seeded from a stable hash of the content, so the preview and the saved file are identical.
 - **Small codes:** shapes are in fractions of the code's size, so short content (21 to 25 modules) gives a blockier animal with less readable faces than long content.
 
@@ -94,6 +94,36 @@ The **Drawing** tab is the generator with a canvas (`Controls/DrawingCanvas`) in
 - **Line weight:** the pen is fixed in canvas pixels while modules shrink as content grows. Lines are about 2 modules thick for a typical link (29 modules) and get bolder for long content.
 
 Tests: `DrawingTests` (filling, solid lines, gap closing, a head on the code, scanning, empty canvas, and the view model's Generate and Save).
+
+### Picture tab
+
+The **Picture** tab uses a picture as the template, the same way the Drawing tab uses a drawing. The picture's subject becomes the shape around the code, filled with the QR-like texture like the Kurkod body, and the code sits in the centre.
+
+- **Page:** a picture card shows the template, not the photo: black is what will become the shape, and the code's square is blue. It has **Choose picture**, **Remove**, and drag and drop. Generate without a picture warns and does nothing (`MainViewModel.GenerateBlockedReason`). The other controls:
+  - **Shape from:** **Subject (automatic)**, the default, or **QR code color**.
+  - **Sensitivity** (20–80 %, default 50 %): how much of the picture counts.
+  - **Code size** (20–60 % of the shorter side, default 40 %): a smaller code leaves more picture for the shape, so more detail.
+  - **Detail:** Normal, **Fine** (the default), or Extra fine.
+- **`QrPicture`:**
+  - Loads PNG, JPG, BMP, GIF (first frame), WEBP or ICO through SkiaSharp. Unreadable data gives `InvalidDataException`.
+  - Scales the picture once to 720 px on the long side, so template changes stay quick.
+  - **Subject:** the background is read from the picture's edge. If most edge pixels are transparent, the subject is whatever is opaque. Otherwise the background is the median edge color, and the subject is every pixel more than 90 (lowest sensitivity) to 10 (highest) away from it in RGB. This catches light figures on white, which the QR code color mode misses.
+  - **QR code color:** a pixel counts when it is within `sensitivity x distance(code color, background color)` of the code color. With red as the code color, only reddish pixels count, not black ones.
+  - **Both modes:** transparent pixels never count, and pieces smaller than 0.2 % of the picture (stray lines, signatures, dust) are dropped.
+  - `PictureCodesViewModel` rebuilds the template when the picture, mode, sensitivity, code size or either color changes.
+- **Shape:** a `MaskShape` with `inkPart: Textured`.
+  - **Subject:** `codeClosesAreas: false` and `largestFilledArea: 0.02`. The subject is already solid, so only small holes in it are filled, such as white fur inside an outline, and not background it surrounds, such as the space under an arch.
+  - **QR code color:** fills every enclosed area like a drawing does, so an outline heart fills.
+  - The gap closing is scaled to the template size (12 px at 720).
+- **Detail:** `ShapeStyle(shape, cellsPerModule)` makes `ShapedCodeBuilder` draw the shape in 2 x 2 or 3 x 3 cells per module.
+  - Edges are smoother and the texture finer, while the code's modules cover whole blocks of cells and stay unchanged.
+  - Finder gaps and the quiet zone stay the same in modules, and `QrScanVerifier` checks every result at the same module sizes.
+  - With an exact pixel size, a module is the nearest multiple of the cells (6 px per module at Fine is 3 px cells).
+- **Results:** picture codes keep the picture's proportions, so a tall cat gives a tall code. A picture with no subject gives the plain code. Picture codes use the same builder as drawings and animals, so the same finder gaps, texture rules and scan check apply. A 2000 x 1300 code from a 720 px template takes about 0.2–0.3 s.
+
+The local branch `picture-blend-experiment` (not pushed) keeps an earlier, unused take on this tab: the picture blended into the code in color ("artistic QR code").
+
+Tests: `PictureTests` (silhouette, outline, photo-like and all-black pictures at every pixel size; subject mode on a light figure and a cut-out; ink color; sensitivity; transparency; dropped specks; background under an arch vs small holes; every detail level at every pixel size; finer cells; a picture without ink; the template preview; bad files; and the view model).
 
 Save and Copy use what the preview shows, so settings changed since Generate do not affect them until the next Generate. Save does use the currently selected format. Copy always uses the in-memory PNG, whatever format was saved.
 

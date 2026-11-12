@@ -8,21 +8,23 @@ using VR.QrCodeGenerator.Service.Generation;
 namespace VR.QrCodeGenerator.Service.Rendering
 {
     /// <summary>
-    /// A true vector image: one path with a run per row of dark modules. The view box adds the same margin as the raster
+    /// A true vector image: one path with a run per row of dark cells. The view box adds the same margin as the raster
     /// formats when the aspect ratios differ.
     /// </summary>
     public sealed class SvgImageRenderer : IQrImageRenderer
     {
         public EnumImageFormat Format => EnumImageFormat.Svg;
 
-        public byte[] Render(bool[,] modules, QrCodeOptions options, int width, int height)
+        public byte[] Render(QrDrawing drawing, QrCodeOptions options, int width, int height)
         {
-            var rows = modules.Rows();
-            var columns = modules.Columns();
+            var cells = drawing.Cells;
 
-            var moduleSize = Math.Min((double)width / columns, (double)height / rows);
-            var viewWidth = width / moduleSize;
-            var viewHeight = height / moduleSize;
+            var rows = cells.Rows();
+            var columns = cells.Columns();
+
+            var cellSize = Math.Min((double)width / columns, (double)height / rows);
+            var viewWidth = width / cellSize;
+            var viewHeight = height / cellSize;
 
             var path = new StringBuilder();
 
@@ -30,12 +32,12 @@ namespace VR.QrCodeGenerator.Service.Rendering
             {
                 for (var column = 0; column < columns; column++)
                 {
-                    if (!modules[row, column])
+                    if (!cells[row, column])
                         continue;
 
                     var start = column;
 
-                    while (column + 1 < columns && modules[row, column + 1])
+                    while (column + 1 < columns && cells[row, column + 1])
                         column++;
 
                     path.Append(CultureInfo.InvariantCulture, $"M{start} {row}h{column - start + 1}v1h-{column - start + 1}z");

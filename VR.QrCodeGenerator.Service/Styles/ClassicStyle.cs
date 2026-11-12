@@ -1,3 +1,5 @@
+using VR.QrCodeGenerator.Service.Generation;
+
 namespace VR.QrCodeGenerator.Service.Styles
 {
     /// <summary>
@@ -5,6 +7,6 @@ namespace VR.QrCodeGenerator.Service.Styles
     /// </summary>
     public sealed class ClassicStyle : IQrStyle
     {
-        public bool[,] Apply(bool[,] code, string content) => code;
+        public QrDrawing Apply(bool[,] code, string content) => new QrDrawing(code);
     }
 }

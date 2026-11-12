@@ -24,17 +24,22 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
 
         /// <param name="code">The QR code's modules [row, column], without a quiet zone.</param>
         /// <param name="content">The encoded text: seeds the texture (the same content always gives the same drawing) and checks the result scans.</param>
+        /// <param name="cellsPerModule">
+        /// 1 draws the shape in whole modules; 2 or 3 in smaller cells for smoother edges and finer texture. Gaps and
+        /// the quiet zone stay the same in modules.
+        /// </param>
         /// <returns>
-        /// The drawing [row, column] without a quiet zone, cropped to the shape; only ever a drawing that scans. Tries a
-        /// gap beside the finder patterns, then other textures, then wider gaps, then a full quiet zone around the code.
-        /// If nothing scans, which tests have not seen happen, the plain code is returned.
+        /// The drawing without a quiet zone, cropped to the shape; only ever a drawing that scans. Tries a gap beside
+        /// the finder patterns, then other textures, then wider gaps, then a full quiet zone around the code. If nothing
+        /// scans, which tests have not seen happen, the plain code is returned.
         /// </returns>
-        public static bool[,] Build(bool[,] code, string content, IShape shape)
+        public static QrDrawing Build(bool[,] code, string content, IShape shape, int cellsPerModule = 1)
         {
             ArgumentNullException.ThrowIfNull(code);
             ArgumentNullException.ThrowIfNull(shape);
 
             var seed = StableHash(content ?? string.Empty);
+            var cells = QrDrawing.Expand(code, cellsPerModule);
             var attempts = FinderGaps.Select(gap => (Gap: gap, WholeQuietZone: false))
                                      .Append((Gap: QrMatrixEncoder.QuietZoneModules, WholeQuietZone: true));
 
@@ -42,19 +47,23 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
             {
                 for (var texture = 0; texture < TexturesPerGap; texture++)
                 {
-                    var drawing = Draw(code, shape, unchecked(seed + texture * 7919), gap, wholeQuietZone);
+                    var drawing = new QrDrawing(Draw(cells, cellsPerModule, shape, unchecked(seed + texture * 7919), gap * cellsPerModule, wholeQuietZone), cellsPerModule);
 
                     if (QrScanVerifier.Scans(drawing, content))
                         return drawing;
                 }
             }
 
-            return code;
+            return new QrDrawing(code);
         }
 
-        private static bool[,] Draw(bool[,] code, IShape shape, int seed, int gap, bool keepWholeQuietZone)
+        /// <param name="code">The code in cells: each module as cellsPerModule x cellsPerModule cells.</param>
+        /// <param name="gap">The gap beside the finder patterns, in cells.</param>
+        private static bool[,] Draw(bool[,] code, int cellsPerModule, IShape shape, int seed, int gap, bool keepWholeQuietZone)
         {
+            // From here on everything is in cells: the code is `size` cells wide, a finder pattern 7 modules.
             var size = code.Rows();
+            var finder = 7 * cellsPerModule;
             var margins = shape.Margins;
 
             var left = (int)Math.Ceiling(margins.Left * size);
@@ -79,9 +88,9 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
                     return Distance(row, column, top, left, size) <= gap;
 
                 // The three finder patterns are 7 x 7 modules in the top-left, top-right and bottom-left corners.
-                return Distance(row, column, top, left, 7) <= gap
-                       || Distance(row, column, top, left + size - 7, 7) <= gap
-                       || Distance(row, column, top + size - 7, left, 7) <= gap;
+                return Distance(row, column, top, left, finder) <= gap
+                       || Distance(row, column, top, left + size - finder, finder) <= gap
+                       || Distance(row, column, top + size - finder, left, finder) <= gap;
             }
 
             ShapePart PartAt(int row, int column) => row < 0 || column < 0 || row >= rows || column >= columns ? ShapePart.None : parts[row, column];

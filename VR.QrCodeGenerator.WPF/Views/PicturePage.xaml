@@ -1,0 +1,151 @@
+<Page x:Class="VR.QrCodeGenerator.WPF.Views.PicturePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:controls="clr-namespace:VR.QrCodeGenerator.WPF.Controls"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Picture"
+      d:DesignHeight="800"
+      d:DesignWidth="1000"
+      Style="{StaticResource AppPageStyle}"
+      mc:Ignorable="d">
+    <controls:QrGeneratorView>
+        <controls:QrGeneratorView.TopContent>
+            <StackPanel>
+                <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Picture" />
+
+                <!--  Drop a file here, or use Choose picture.  -->
+                <Border AllowDrop="True"
+                        DragOver="Picture_OnDragOver"
+                        Drop="Picture_OnDrop"
+                        Style="{StaticResource CardBorderStyle}">
+                    <StackPanel>
+                        <!--  The template: what of the picture becomes the shape, with the code's square in blue. White in both themes, like the drawing canvas.  -->
+                        <Border Height="260"
+                                Background="White"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <Grid>
+                                <Image Margin="4"
+                                       RenderOptions.BitmapScalingMode="NearestNeighbor"
+                                       Source="{Binding TemplatePreview}"
+                                       Stretch="Uniform" />
+
+                                <!--  Empty state until a picture is chosen.  -->
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasPicture}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <ui:SymbolIcon HorizontalAlignment="Center"
+                                                   FontSize="48"
+                                                   Foreground="#80000000"
+                                                   Symbol="ImageAdd24" />
+                                    <TextBlock Margin="0,8,0,0"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"
+                                               Foreground="#99000000"
+                                               Text="Choose a picture or drop one here" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12"
+                                               Foreground="#99000000"
+                                               Text="Silhouettes and line art work best" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Margin="0,8,0,0"
+                                   Style="{StaticResource CaptionTextStyle}"
+                                   Text="{Binding PictureName, TargetNullValue='Black is what becomes the shape. The blue square is the code.'}"
+                                   TextTrimming="CharacterEllipsis" />
+
+                        <StackPanel Style="{StaticResource ActionBarPanelStyle}">
+                            <ui:Button Command="{Binding RemovePictureCommand}"
+                                       Content="Remove"
+                                       Icon="{ui:SymbolIcon Dismiss24}" />
+                            <ui:Button Margin="8,0,0,0"
+                                       Appearance="Primary"
+                                       Command="{Binding ChoosePictureCommand}"
+                                       Content="Choose picture"
+                                       Icon="{ui:SymbolIcon ImageAdd24}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <controls:SettingsCard Margin="0,4,0,4"
+                                       Description="{Binding SelectedSource.Description}"
+                                       Header="Shape from"
+                                       Icon="{ui:SymbolIcon ImageEdit24}"
+                                       IsStacked="True">
+                    <ComboBox DisplayMemberPath="Name"
+                              ItemsSource="{Binding Sources}"
+                              SelectedItem="{Binding SelectedSource}" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Description="How much of the picture counts as the shape. Raise it if parts are missing, lower it if the background creeps in."
+                                       Header="Sensitivity"
+                                       Icon="{ui:SymbolIcon Options24}"
+                                       IsStacked="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="48" />
+                        </Grid.ColumnDefinitions>
+                        <Slider VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True"
+                                Maximum="0.8"
+                                Minimum="0.2"
+                                TickFrequency="0.05"
+                                Value="{Binding Sensitivity}" />
+                        <TextBlock Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextStyle}"
+                                   Text="{Binding Sensitivity, StringFormat={}{0:P0}}" />
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Description="The code's share of the picture. Smaller leaves more of the picture for the shape, so it shows more detail."
+                                       Header="Code size"
+                                       Icon="{ui:SymbolIcon QrCode24}"
+                                       IsStacked="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="48" />
+                        </Grid.ColumnDefinitions>
+                        <Slider VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True"
+                                Maximum="0.6"
+                                Minimum="0.2"
+                                TickFrequency="0.05"
+                                Value="{Binding CodeSize}" />
+                        <TextBlock Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextStyle}"
+                                   Text="{Binding CodeSize, StringFormat={}{0:P0}}" />
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Margin="0,0,0,4"
+                                       Description="{Binding SelectedDetail.Description}"
+                                       Header="Detail"
+                                       Icon="{ui:SymbolIcon ZoomIn24}"
+                                       IsStacked="True">
+                    <ComboBox DisplayMemberPath="Name"
+                              ItemsSource="{Binding Details}"
+                              SelectedItem="{Binding SelectedDetail}" />
+                </controls:SettingsCard>
+            </StackPanel>
+        </controls:QrGeneratorView.TopContent>
+    </controls:QrGeneratorView>
+</Page>
