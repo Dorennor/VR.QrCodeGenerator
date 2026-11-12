@@ -135,7 +135,7 @@ namespace VR.QrCodeGenerator.Tests
         [Test]
         public void EveryStyle_IsRegistered([Values] EnumQrStyle style)
         {
-            Assert.That(QrStyles.Get(style).Style, Is.EqualTo(style));
+            Assert.That(QrStyles.Get(style), Is.Not.Null);
         }
 
         [Test]
@@ -148,7 +148,7 @@ namespace VR.QrCodeGenerator.Tests
         public void StyleMadeAtRuntime_IsUsedAndScans()
         {
             // How a style from a drawing will plug in: any IShape, wrapped in a ShapeStyle, passed straight to Generate.
-            var style = new ShapeStyle(EnumQrStyle.Classic, new FrameShape());
+            var style = new ShapeStyle(new FrameShape());
 
             var bytes = _service.Generate(Url, new QrCodeOptions { PixelsPerModule = 8 }, style);
             using var plain = SKBitmap.Decode(_service.Generate(Url, new QrCodeOptions { PixelsPerModule = 8 }));

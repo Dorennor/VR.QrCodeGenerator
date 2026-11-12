@@ -24,8 +24,8 @@ Dependencies run in one direction: WPF -> ViewModel -> Service -> Model.
 | --- | --- |
 | `VR.QrCodeGenerator.Model` | `QrCodeOptions`, `EnumContentType` (Uri, Text), `EnumImageFormat` (Png, Jpg, Svg), settings classes |
 | `VR.QrCodeGenerator.Service` | `QrCodeGeneratorService` (the pipeline), `Generation/` (encoder, matrix helpers), `Styles/` (styles and shapes), `Rendering/` (PNG/JPG/SVG), `Verification/QrScanVerifier`, `LoggingService`, `SettingsService` (load/save settings.json), `AppPaths` (settings and logs folders), service interfaces, `OutputHelper` (output folder, save, clipboard), `ImageHelper` (bytes to bitmap), `UriHelper` (http/https check) |
-| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `CustomCodesViewModel`: the same plus a list of styles. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
-| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout both generator pages host), `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
+| `VR.QrCodeGenerator.ViewModel` | `MainViewModel`: the UI state and the Generate, Copy, Save, Reset and Open folder commands. `CustomCodesViewModel`: the same plus a list of styles. `DrawingCodesViewModel`: the same with the user's drawing. `QrStyleOption`: a combobox entry. `SettingsViewModel`: the Settings page |
+| `VR.QrCodeGenerator.WPF` | `App` (host, DI, crash handling), `MainWindow` (NavigationView), `Controls/QrGeneratorView` (the generator layout the three generator pages host), `Controls/DrawingCanvas`, `Views/GeneratorPage`, `Views/CustomCodesPage`, `Views/DrawingPage`, `Views/SettingsPage`, `ServiceProviderPageProvider`, `WpfDialogService`, `Controls/SettingsCard`, `Styles/AppStyles.xaml`, `Assets/AppIcon.ico`, publish profile |
 | `VR.QrCodeGenerator.Tests` | Service tests (formats, scanning, size limits) and view model tests (command states, error paths) |
 
 ## How generating works
@@ -73,21 +73,27 @@ To add a style:
 
 1. Add a value to `EnumQrStyle`.
 2. Write an `IShape` in `Styles/Shapes`, like `CatShape`. For something that is not a shape around the code, write an `IQrStyle` instead.
-3. Register `new ShapeStyle(EnumQrStyle.X, new XShape())` in `QrStyles`.
+3. Register `[EnumQrStyle.X] = new ShapeStyle(new XShape())` in `QrStyles`.
 4. Add a `QrStyleOption` (name and description) to `CustomCodesViewModel.Styles`.
 
 `ShapeStyleTests` picks up every value of `EnumQrStyle` automatically. It checks scanning (all error correction levels, formats, pixel sizes and many contents), size, determinism, registration, and that the style is offered on the page.
 
-### Planned: drawing editor
+### Drawing tab
 
-The idea is a canvas where the user draws black lines with a fixed pen and gets a QR code shaped like the drawing. The pipeline is built for it:
+The **Drawing** tab is the generator with a canvas (`Controls/DrawingCanvas`) in place of the style picker. Pages put their own section above the options through `QrGeneratorView.TopContent`.
 
-- The drawing becomes a `bool[,]` mask of the canvas pixels.
-- A new `MaskShape : IShape` maps (u, v) to a mask pixel, for example drawn pixels `Solid`, or `Textured` for a QR-like look. It also places the code inside the drawing, with margins from where the code sits on the canvas.
-- The view model passes `new ShapeStyle(..., new MaskShape(mask))` to `Generate(content, options, IQrStyle style, ...)`.
-- `ShapedCodeBuilder` then applies the same finder gaps, texture rules and scan check as the animals. `ShapeStyleTests.StyleMadeAtRuntime_IsUsedAndScans` already covers a runtime shape.
+- **Canvas:** a 360 x 360 white sheet with WPF's `InkCanvas` and one black pen, 10 px, round, no pressure. **Undo** removes the last line, **Clear** removes them all. A dashed square in the centre shows where the code goes: `DrawingCodesViewModel.CodeFraction`, 40 % of the canvas.
+- **To the view model:** after every change the strokes are rendered on white and turned into a `bool[,]` mask, one value per canvas pixel. It reaches `DrawingCodesViewModel.Drawing` through a `OneWayToSource` binding.
+- **Generate:** `DrawingCodesViewModel.CreateStyle` (a `MainViewModel` hook) returns `new ShapeStyle(new MaskShape(copy of the mask, CodeFraction))`. `MainViewModel` keeps the style it generated with, so Save matches the preview even after the drawing changes. An empty canvas gives the plain code.
+- **`MaskShape`:**
+  - A module where the pen covers at least 30 % is `Solid`.
+  - A module at least half inside an enclosed area is `Textured`. Enclosed means it cannot be reached from the canvas edge without crossing a line or the code's square, so a head drawn on top of the code fills too.
+  - Before the flood fill, lines are closed morphologically (dilate, then erode, 6 px), so small slips in an outline still fill.
+  - Coverage is read from summed-area tables, so each module costs the same whatever its size.
+- **Scanning:** the drawing gets the same finder gaps, texture rules and scan check as the animals, so a drawing anywhere, even scribbles over the whole canvas, still gives a code that scans.
+- **Line weight:** the pen is fixed in canvas pixels while modules shrink as content grows. Lines are about 2 modules thick for a typical link (29 modules) and get bolder for long content.
 
-Open questions for that feature: where the code goes on the canvas (fixed in the centre, or placed by the user), and how a line wider than one module is drawn.
+Tests: `DrawingTests` (filling, solid lines, gap closing, a head on the code, scanning, empty canvas, and the view model's Generate and Save).
 
 Save and Copy use what the preview shows, so settings changed since Generate do not affect them until the next Generate. Save does use the currently selected format. Copy always uses the in-memory PNG, whatever format was saved.
 

@@ -1,5 +1,3 @@
-using VR.QrCodeGenerator.Model.Enums;
-
 namespace VR.QrCodeGenerator.Service.Styles
 {
     /// <summary>
@@ -7,8 +5,6 @@ namespace VR.QrCodeGenerator.Service.Styles
     /// </summary>
     public sealed class ClassicStyle : IQrStyle
     {
-        public EnumQrStyle Style => EnumQrStyle.Classic;
-
         public bool[,] Apply(bool[,] code, string content) => code;
     }
 }

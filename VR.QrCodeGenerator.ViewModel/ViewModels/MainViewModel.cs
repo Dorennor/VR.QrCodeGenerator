@@ -14,6 +14,7 @@ using VR.QrCodeGenerator.Model.Models.Settings;
 using VR.QrCodeGenerator.Service.Exceptions;
 using VR.QrCodeGenerator.Service.Helpers;
 using VR.QrCodeGenerator.Service.Interfaces;
+using VR.QrCodeGenerator.Service.Styles;
 using VR.QrCodeGenerator.ViewModel.Abstractions;
 
 namespace VR.QrCodeGenerator.ViewModel.ViewModels
@@ -73,6 +74,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         private string _generatedContent;
 
         private QrCodeOptions _generatedOptions;
+        private IQrStyle _generatedStyle;
         private byte[] _generatedPng;
 
         public MainViewModel(IDialogService dialogService, IQrCodeGeneratorService qrCodeGeneratorService, ILoggingService loggingService, Settings settings)
@@ -101,6 +103,12 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         /// </summary>
         [ObservableProperty]
         private QrStyleOption _selectedStyle;
+
+        /// <summary>
+        /// The style for the next Generate. Here the selected built-in style; a page can draw its own way, as the
+        /// Drawing page does with the user's drawing.
+        /// </summary>
+        protected virtual IQrStyle CreateStyle() => QrStyles.Get(SelectedStyle?.Style ?? EnumQrStyle.Classic);
 
         private void Initialize()
         {
@@ -145,18 +153,19 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
                 ForegroundColor = [SelectedForegroundColor.R, SelectedForegroundColor.G, SelectedForegroundColor.B],
                 BackgroundColor = [SelectedBackgroundColor.R, SelectedBackgroundColor.G, SelectedBackgroundColor.B],
                 Height = QrCodeHeight,
-                Width = QrCodeWidth,
-                Style = SelectedStyle?.Style ?? EnumQrStyle.Classic
+                Width = QrCodeWidth
             };
 
             try
             {
-                var png = _qrCodeGeneratorService.Generate(content, options);
+                var style = CreateStyle();
+                var png = _qrCodeGeneratorService.Generate(content, options, style);
 
                 QrCodeImage = ImageHelper.LoadBitmap(png);
                 _generatedPng = png;
                 _generatedContent = content;
                 _generatedOptions = options;
+                _generatedStyle = style;
             }
             catch (DataTooLongException ex)
             {
@@ -199,7 +208,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
         {
             try
             {
-                var file = _qrCodeGeneratorService.Generate(_generatedContent, _generatedOptions, SelectedImageFormat);
+                var file = _qrCodeGeneratorService.Generate(_generatedContent, _generatedOptions, _generatedStyle, SelectedImageFormat);
                 var path = OutputHelper.SaveToFile(file, OutputFolder, SelectedImageFormat);
 
                 StatusMessage = $"Saved {QrCodeImage.PixelWidth} x {QrCodeImage.PixelHeight} px to {path}";
@@ -219,6 +228,7 @@ namespace VR.QrCodeGenerator.ViewModel.ViewModels
             _generatedPng = null;
             _generatedContent = null;
             _generatedOptions = null;
+            _generatedStyle = null;
         }
 
         [RelayCommand]

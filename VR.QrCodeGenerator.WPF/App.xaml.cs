@@ -58,11 +58,13 @@ namespace VR.QrCodeGenerator.WPF
 
             services.AddSingleton<MainViewModel>();
             services.AddSingleton<CustomCodesViewModel>();
+            services.AddSingleton<DrawingCodesViewModel>();
             services.AddSingleton<SettingsViewModel>();
 
             // Singletons: switching pages keeps the generator's content and preview.
             services.AddSingleton<GeneratorPage>();
             services.AddSingleton<CustomCodesPage>();
+            services.AddSingleton<DrawingPage>();
             services.AddSingleton<SettingsPage>();
             services.AddSingleton<INavigationViewPageProvider, ServiceProviderPageProvider>();
 

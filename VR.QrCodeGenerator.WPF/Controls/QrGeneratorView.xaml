@@ -143,30 +143,8 @@
         <!--  Right: options.  -->
         <ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="0,0,12,0">
-                <!--  Custom codes only: the pages without styles hide this section.  -->
-                <StackPanel>
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ShowsStyles}" Value="False">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
-
-                    <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Style" />
-
-                    <controls:SettingsCard Description="{Binding SelectedStyle.Description}"
-                                           Header="Custom style"
-                                           Icon="{ui:SymbolIcon Sparkle24}"
-                                           IsStacked="True">
-                        <ComboBox Name="StyleComboBox"
-                                  DisplayMemberPath="Name"
-                                  ItemsSource="{Binding AvailableStyles}"
-                                  SelectedItem="{Binding SelectedStyle}" />
-                    </controls:SettingsCard>
-                </StackPanel>
+                <!--  Page-specific section (style picker, drawing canvas); empty on the Generator page.  -->
+                <ContentPresenter Content="{Binding TopContent, RelativeSource={RelativeSource AncestorType=UserControl}}" />
 
                 <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Appearance" />
 

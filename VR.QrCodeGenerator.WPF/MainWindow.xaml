@@ -53,6 +53,13 @@
                         <ui:SymbolIcon Symbol="Sparkle24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
+                <ui:NavigationViewItem Content="Drawing"
+                                       TargetPageType="{x:Type views:DrawingPage}"
+                                       ToolTip="Draw a picture and get a QR code shaped like it">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="InkStroke24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.FooterMenuItems>
                 <ui:NavigationViewItem Content="Settings"

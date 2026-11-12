@@ -9,13 +9,13 @@ namespace VR.QrCodeGenerator.Service.Styles
     /// </summary>
     public static class QrStyles
     {
-        private static readonly IReadOnlyDictionary<EnumQrStyle, IQrStyle> All = new IQrStyle[]
+        private static readonly IReadOnlyDictionary<EnumQrStyle, IQrStyle> All = new Dictionary<EnumQrStyle, IQrStyle>
         {
-            new ClassicStyle(),
-            new ShapeStyle(EnumQrStyle.Kurkod, new ChickenShape()),
-            new ShapeStyle(EnumQrStyle.Cat, new CatShape()),
-            new ShapeStyle(EnumQrStyle.Dog, new DogShape())
-        }.ToDictionary(style => style.Style);
+            [EnumQrStyle.Classic] = new ClassicStyle(),
+            [EnumQrStyle.Kurkod] = new ShapeStyle(new ChickenShape()),
+            [EnumQrStyle.Cat] = new ShapeStyle(new CatShape()),
+            [EnumQrStyle.Dog] = new ShapeStyle(new DogShape())
+        };
 
         public static IQrStyle Get(EnumQrStyle style)
         {

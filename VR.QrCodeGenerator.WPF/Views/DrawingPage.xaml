@@ -1,0 +1,26 @@
+<Page x:Class="VR.QrCodeGenerator.WPF.Views.DrawingPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:controls="clr-namespace:VR.QrCodeGenerator.WPF.Controls"
+      xmlns:vm="clr-namespace:VR.QrCodeGenerator.ViewModel.ViewModels;assembly=VR.QrCodeGenerator.ViewModel"
+      Title="Drawing"
+      d:DesignHeight="800"
+      d:DesignWidth="1000"
+      Style="{StaticResource AppPageStyle}"
+      mc:Ignorable="d">
+    <controls:QrGeneratorView>
+        <controls:QrGeneratorView.TopContent>
+            <StackPanel>
+                <TextBlock Style="{StaticResource SectionHeaderTextStyle}" Text="Drawing" />
+
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <controls:DrawingCanvas CanvasSize="360"
+                                            CodeFraction="{x:Static vm:DrawingCodesViewModel.CodeFraction}"
+                                            Drawing="{Binding Drawing, Mode=OneWayToSource}" />
+                </Border>
+            </StackPanel>
+        </controls:QrGeneratorView.TopContent>
+    </controls:QrGeneratorView>
+</Page>
