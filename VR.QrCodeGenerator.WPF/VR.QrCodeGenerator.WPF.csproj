@@ -8,6 +8,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <!-- Shown in the exe's Properties > Details; matches the GitHub release tag (v1.0.0). -->
+    <Version>1.0.0</Version>
+    <Product>QR Code Generator</Product>
+    <Description>QR codes, custom styles (Kurkod, cat, dog), drawings and pictures</Description>
+    <Authors>Volodymyr Rud</Authors>
+    <Copyright>Copyright © 2026 Volodymyr Rud</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
