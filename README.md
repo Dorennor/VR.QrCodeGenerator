@@ -10,7 +10,7 @@ A simple WPF desktop app to generate and customize QR codes.
 - Copy QR codes to clipboard
 - Custom codes tab with fun styles, picked from a list. Kurkod 🐔 (a chicken, like the meme), Cat 🐱 and Dog 🐶. The code itself stays intact and every result is checked to scan
 - Drawing tab ✏️: draw around the code with the mouse and get a QR code shaped like your drawing. Closed shapes are filled with a QR-like texture, lines stay solid, and the result is checked to scan
-- Picture tab 🖼️: choose a picture (or drop one) and its subject becomes the shape around the code, like a drawing, with adjustable sensitivity, code size and detail (smooth edges)
+- Picture tab 🖼️: choose a picture (or drop one) and it is drawn around the code in black and white dots (dithered), so photos keep their details. Drag the code where you want it; adjust brightness, contrast, code size and detail
 - Settings page: choose the output folder and logging options, applied without a restart
 - Windows 11 style interface that follows the system light or dark theme
 - Ships as a single portable `.exe`

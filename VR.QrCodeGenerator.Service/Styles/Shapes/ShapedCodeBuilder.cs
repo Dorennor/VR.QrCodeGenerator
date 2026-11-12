@@ -16,6 +16,12 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
     {
         private const double TextureDensity = 0.5;
 
+        /// <summary>
+        /// How far the dithering threshold moves around 0.5 with the seed: small, so the picture looks the same, but
+        /// enough that a retry is a different drawing.
+        /// </summary>
+        private const double DitherJitter = 0.2;
+
         // A clean render decodes even with a 1-module gap, but a phone camera sees blur and perspective: start with 2.
         private static readonly int[] FinderGaps = [2, 3];
 
@@ -115,6 +121,12 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
             var random = new Random(seed);
             var result = new bool[rows, columns];
 
+            // A shape with tones is dithered: each textured cell is dark or light by the picture's darkness, and the
+            // rounding error spreads to the next cells (Floyd-Steinberg), so the picture's details and shading survive.
+            var tones = shape as IToneShape;
+            var error = tones is null ? null : new double[rows + 1, columns + 2];
+            var outline = tones?.DrawOutline ?? true;
+
             for (var row = 0; row < rows; row++)
             {
                 for (var column = 0; column < columns; column++)
@@ -125,8 +137,9 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
                         continue;
                     }
 
-                    // Drawn for every module so the texture does not shift when the gap changes.
-                    var textureDark = random.NextDouble() < TextureDensity;
+                    // Drawn for every cell so the texture does not shift when the gap changes; with tones it jitters
+                    // the threshold a little, so another seed gives a slightly different dither to try.
+                    var chance = random.NextDouble();
 
                     if (Blocked(row, column))
                         continue;
@@ -134,11 +147,27 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
                     result[row, column] = parts[row, column] switch
                     {
                         ShapePart.Solid => true,
-                        ShapePart.Textured => OnEdge(row, column, ShapePart.Textured) || (textureDark && !CompletesDarkBlock(result, row, column)),
+                        ShapePart.Textured when outline && OnEdge(row, column, ShapePart.Textured) => true,
+                        ShapePart.Textured when tones is not null => Dither(row, column, (column - left + 0.5) / size, (row - top + 0.5) / size, chance),
+                        ShapePart.Textured => chance < TextureDensity && !CompletesDarkBlock(result, row, column),
                         ShapePart.Light => OnEdge(row, column, ShapePart.Light),
                         _ => false
                     };
                 }
+            }
+
+            bool Dither(int row, int column, double u, double v, double chance)
+            {
+                var value = tones.Darkness(u, v, size) + error[row, column + 1];
+                var dark = value > 0.5 + (chance - 0.5) * DitherJitter;
+                var rest = value - (dark ? 1 : 0);
+
+                error[row, column + 2] += rest * 7 / 16;
+                error[row + 1, column] += rest * 3 / 16;
+                error[row + 1, column + 1] += rest * 5 / 16;
+                error[row + 1, column + 2] += rest * 1 / 16;
+
+                return dark;
             }
 
             foreach (var eye in shape.Eyes)

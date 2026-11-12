@@ -17,10 +17,10 @@ namespace VR.QrCodeGenerator.Service.Pictures
         public const string FileFilter = "Pictures|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.ico";
 
         /// <summary>
-        /// Templates are made at most this many pixels on the long side: more than the finest shape cells of a large
-        /// code need, and still quick to process.
+        /// Templates are made at most this many pixels on the long side: about as many as the finest cells of a small
+        /// code on a big picture (a 4 x 4 cell module at 20 % code size), and still quick to process.
         /// </summary>
-        public const int TemplateSide = 720;
+        public const int TemplateSide = 1200;
 
         /// <summary>
         /// In <see cref="PictureTemplateSource.Subject"/> mode, how far (in RGB distance) a pixel must be from the
@@ -72,15 +72,61 @@ namespace VR.QrCodeGenerator.Service.Pictures
         /// <summary>
         /// The template [row, column]: true for the pixels that become the shape. Small separate pieces are dropped.
         /// </summary>
-        /// <param name="source">Which pixels count: the subject against its background, or those in the code color.</param>
+        /// <param name="source">Which pixels count: the whole picture, the subject against its background, or those in the code color.</param>
         /// <param name="ink">The QR code color, for <see cref="PictureTemplateSource.CodeColor"/>.</param>
         /// <param name="paper">The background color of the code, for <see cref="PictureTemplateSource.CodeColor"/>.</param>
-        /// <param name="sensitivity">0 to 1: higher takes more of the picture.</param>
+        /// <param name="sensitivity">0 to 1: higher takes more of the picture. Not used for the whole picture.</param>
         public bool[,] ToTemplate(PictureTemplateSource source, SKColor ink, SKColor paper, double sensitivity = 0.5)
         {
+            if (source == PictureTemplateSource.WholePicture)
+                return OpaqueTemplate();
+
             var template = source == PictureTemplateSource.Subject ? SubjectTemplate(sensitivity) : CodeColorTemplate(ink, paper, sensitivity);
 
             return RemoveSmallPieces(template, (int)Math.Ceiling(SmallestPiece * Width * Height));
+        }
+
+        /// <summary>
+        /// How dark each pixel is, 0 (white) to 1 (black), from its luminance; transparent pixels are white.
+        /// </summary>
+        /// <param name="brightness">-1 to 1: added lightness, for dark photos that would dither mostly black (or the other way).</param>
+        /// <param name="contrast">0.5 to 2: 1 keeps the picture's contrast; higher separates light and dark more.</param>
+        public float[,] ToDarkness(double brightness = 0, double contrast = 1)
+        {
+            var darkness = new float[Height, Width];
+
+            for (var row = 0; row < Height; row++)
+            {
+                for (var column = 0; column < Width; column++)
+                {
+                    var pixel = _bitmap.GetPixel(column, row);
+                    var alpha = pixel.Alpha / 255.0;
+
+                    // Transparent parts show the white paper.
+                    var luminance = (0.299 * pixel.Red + 0.587 * pixel.Green + 0.114 * pixel.Blue) / 255 * alpha + (1 - alpha);
+                    var adjusted = (luminance - 0.5) * contrast + 0.5 + brightness;
+
+                    darkness[row, column] = (float)Math.Clamp(1 - adjusted, 0, 1);
+                }
+            }
+
+            return darkness;
+        }
+
+        /// <summary>
+        /// The whole picture, except where it is transparent.
+        /// </summary>
+        private bool[,] OpaqueTemplate()
+        {
+            var template = new bool[Height, Width];
+
+            for (var row = 0; row < Height; row++)
+            {
+                for (var column = 0; column < Width; column++)
+                    template[row, column] = _bitmap.GetPixel(column, row).Alpha >= 128;
+            }
+
+            return template;
         }
 
         /// <summary>
@@ -206,16 +252,13 @@ namespace VR.QrCodeGenerator.Service.Pictures
         }
 
         /// <summary>
-        /// The template as a PNG for the page: the shape in <paramref name="ink"/> on white, with the code's square in
-        /// the centre tinted blue, as on the drawing canvas.
+        /// The template as a PNG for the page, one pixel per template pixel, on white: the shape in its tones from
+        /// <paramref name="darkness"/> (what will be dithered), or in <paramref name="ink"/> when there are no tones.
+        /// The page draws the code's square over it, where the user can drag it.
         /// </summary>
-        public static byte[] TemplatePreviewPng(bool[,] template, double codeFraction, SKColor ink)
+        public static byte[] TemplatePreviewPng(bool[,] template, float[,] darkness, SKColor ink)
         {
             int height = template.GetLength(0), width = template.GetLength(1);
-            var side = codeFraction * Math.Min(width, height);
-            var codeLeft = (width - side) / 2;
-            var codeTop = (height - side) / 2;
-            var codeTint = new SKColor(0xDF, 0xEC, 0xF8);
 
             using (SKBitmap bitmap = new SKBitmap(width, height))
             {
@@ -223,9 +266,15 @@ namespace VR.QrCodeGenerator.Service.Pictures
                 {
                     for (var column = 0; column < width; column++)
                     {
-                        var inCode = column >= codeLeft && column < codeLeft + side && row >= codeTop && row < codeTop + side;
+                        if (!template[row, column])
+                        {
+                            bitmap.SetPixel(column, row, SKColors.White);
+                            continue;
+                        }
 
-                        bitmap.SetPixel(column, row, inCode ? codeTint : template[row, column] ? ink : SKColors.White);
+                        var gray = darkness is null ? (byte)0 : (byte)Math.Round(255 * (1 - darkness[row, column]));
+
+                        bitmap.SetPixel(column, row, darkness is null ? ink : new SKColor(gray, gray, gray));
                     }
                 }
 

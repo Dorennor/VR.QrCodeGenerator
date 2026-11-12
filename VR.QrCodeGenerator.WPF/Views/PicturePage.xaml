@@ -21,17 +21,53 @@
                         Drop="Picture_OnDrop"
                         Style="{StaticResource CardBorderStyle}">
                     <StackPanel>
-                        <!--  The template: what of the picture becomes the shape, with the code's square in blue. White in both themes, like the drawing canvas.  -->
+                        <!--
+                            The template: black becomes the shape, the blue square is the code. Drag the square to move
+                            the code, or click anywhere to put it there. Template and square share one Viewbox, so mouse
+                            positions on the canvas are template pixels. White in both themes, like the drawing canvas.
+                        -->
                         <Border Height="260"
                                 Background="White"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                 BorderThickness="1"
                                 CornerRadius="{DynamicResource ControlCornerRadius}">
                             <Grid>
-                                <Image Margin="4"
-                                       RenderOptions.BitmapScalingMode="NearestNeighbor"
-                                       Source="{Binding TemplatePreview}"
-                                       Stretch="Uniform" />
+                                <Viewbox Margin="4" Stretch="Uniform">
+                                    <Viewbox.Style>
+                                        <Style TargetType="Viewbox">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasPicture}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Viewbox.Style>
+                                    <Grid Width="{Binding TemplateWidth}" Height="{Binding TemplateHeight}">
+                                        <Image RenderOptions.BitmapScalingMode="NearestNeighbor"
+                                               Source="{Binding TemplatePreview}"
+                                               Stretch="Fill" />
+                                        <Canvas Background="Transparent"
+                                                Cursor="SizeAll"
+                                                MouseLeftButtonDown="CodeArea_OnMouseLeftButtonDown"
+                                                MouseLeftButtonUp="CodeArea_OnMouseLeftButtonUp"
+                                                MouseMove="CodeArea_OnMouseMove"
+                                                ToolTip="Drag the blue square to move the code, or click where it should go">
+                                            <Border Canvas.Left="{Binding CodeLeft}"
+                                                    Canvas.Top="{Binding CodeTop}"
+                                                    Width="{Binding CodeSide}"
+                                                    Height="{Binding CodeSide}"
+                                                    Background="#590078D4"
+                                                    BorderBrush="#FF0078D4"
+                                                    BorderThickness="2"
+                                                    IsHitTestVisible="False">
+                                                <Viewbox Margin="8">
+                                                    <ui:SymbolIcon Foreground="#FF0078D4" Symbol="QrCode24" />
+                                                </Viewbox>
+                                            </Border>
+                                        </Canvas>
+                                    </Grid>
+                                </Viewbox>
 
                                 <!--  Empty state until a picture is chosen.  -->
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -64,11 +100,17 @@
 
                         <TextBlock Margin="0,8,0,0"
                                    Style="{StaticResource CaptionTextStyle}"
-                                   Text="{Binding PictureName, TargetNullValue='Black is what becomes the shape. The blue square is the code.'}"
+                                   Text="{Binding PictureName, StringFormat={}{0}: drag the blue square to move the code, TargetNullValue='The picture is drawn around the code. The blue square is the code.'}"
                                    TextTrimming="CharacterEllipsis" />
 
                         <StackPanel Style="{StaticResource ActionBarPanelStyle}">
-                            <ui:Button Command="{Binding RemovePictureCommand}"
+                            <ui:Button Command="{Binding CenterCodeCommand}"
+                                       Content="Center"
+                                       Icon="{ui:SymbolIcon AlignCenterHorizontal24}"
+                                       IsEnabled="{Binding HasPicture}"
+                                       ToolTip="Put the code back in the middle of the picture" />
+                            <ui:Button Margin="8,0,0,0"
+                                       Command="{Binding RemovePictureCommand}"
                                        Content="Remove"
                                        Icon="{ui:SymbolIcon Dismiss24}" />
                             <ui:Button Margin="8,0,0,0"
@@ -90,9 +132,58 @@
                               SelectedItem="{Binding SelectedSource}" />
                 </controls:SettingsCard>
 
+                <controls:SettingsCard Description="Lighter or darker before the picture is turned into dots. Raise it for dark photos."
+                                       Header="Brightness"
+                                       Icon="{ui:SymbolIcon BrightnessHigh24}"
+                                       IsEnabled="{Binding UsesTones}"
+                                       IsStacked="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="48" />
+                        </Grid.ColumnDefinitions>
+                        <Slider VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True"
+                                Maximum="0.5"
+                                Minimum="-0.5"
+                                TickFrequency="0.05"
+                                Value="{Binding Brightness}" />
+                        <TextBlock Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextStyle}"
+                                   Text="{Binding Brightness, StringFormat={}{0:+0%;-0%;0%}}" />
+                    </Grid>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard Description="More contrast makes shapes stand out; less keeps soft shading."
+                                       Header="Contrast"
+                                       Icon="{ui:SymbolIcon DarkTheme24}"
+                                       IsEnabled="{Binding UsesTones}"
+                                       IsStacked="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="48" />
+                        </Grid.ColumnDefinitions>
+                        <Slider VerticalAlignment="Center"
+                                IsSnapToTickEnabled="True"
+                                Maximum="2"
+                                Minimum="0.5"
+                                TickFrequency="0.1"
+                                Value="{Binding Contrast}" />
+                        <TextBlock Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource BodyTextStyle}"
+                                   Text="{Binding Contrast, StringFormat={}{0:P0}}" />
+                    </Grid>
+                </controls:SettingsCard>
+
                 <controls:SettingsCard Description="How much of the picture counts as the shape. Raise it if parts are missing, lower it if the background creeps in."
                                        Header="Sensitivity"
                                        Icon="{ui:SymbolIcon Options24}"
+                                       IsEnabled="{Binding UsesSensitivity}"
                                        IsStacked="True">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -113,7 +204,7 @@
                     </Grid>
                 </controls:SettingsCard>
 
-                <controls:SettingsCard Description="The code's share of the picture. Smaller leaves more of the picture for the shape, so it shows more detail."
+                <controls:SettingsCard Description="The code's share of the picture. Smaller leaves more of the picture around it, with more detail."
                                        Header="Code size"
                                        Icon="{ui:SymbolIcon QrCode24}"
                                        IsStacked="True">

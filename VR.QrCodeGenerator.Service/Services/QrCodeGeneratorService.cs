@@ -1,4 +1,6 @@
-﻿using SkiaSharp;
+using QRCoder;
+
+using SkiaSharp;
 
 using VR.QrCodeGenerator.Model.Enums;
 using VR.QrCodeGenerator.Model.Models;
@@ -28,6 +30,34 @@ namespace VR.QrCodeGenerator.Service.Services
             new SvgImageRenderer()
         }.ToDictionary(renderer => renderer.Format);
 
+        private readonly Lock _lastDrawingLock = new();
+
+        // The last drawing and what it was made from. The preview and the saved file are generated separately with the
+        // same content, error correction and style; a decorated drawing can take a second or more, so it is made once.
+        private (string Content, QRCodeGenerator.ECCLevel EccLevel, IQrStyle Style, QrDrawing Drawing)? _lastDrawing;
+
+        /// <summary>
+        /// Steps 1 and 2: the drawing for this content, error correction and style, from the last call when it matches.
+        /// Colors, size and format do not change the drawing.
+        /// </summary>
+        private QrDrawing Draw(string content, QRCodeGenerator.ECCLevel eccLevel, IQrStyle style)
+        {
+            lock (_lastDrawingLock)
+            {
+                if (_lastDrawing is { } last && last.Content == content && last.EccLevel == eccLevel && ReferenceEquals(last.Style, style))
+                    return last.Drawing;
+            }
+
+            var drawing = style.Apply(QrMatrixEncoder.Encode(content, eccLevel), content);
+
+            lock (_lastDrawingLock)
+            {
+                _lastDrawing = (content, eccLevel, style, drawing);
+            }
+
+            return drawing;
+        }
+
         public byte[] Generate(string content, QrCodeOptions options, EnumImageFormat format = EnumImageFormat.Png)
         {
             return Generate(content, options, QrStyles.Get(options?.Style ?? EnumQrStyle.Classic), format);
@@ -41,7 +71,7 @@ namespace VR.QrCodeGenerator.Service.Services
             if (!Renderers.TryGetValue(format, out var renderer))
                 throw new ArgumentOutOfRangeException(nameof(format), "Image format is not supported!");
 
-            var drawing = style.Apply(QrMatrixEncoder.Encode(content, options.EccLevel), content);
+            var drawing = Draw(content, options.EccLevel, style);
 
             if (options.DrawQuietZones)
                 drawing = drawing.WithMargin(QrMatrixEncoder.QuietZoneModules);

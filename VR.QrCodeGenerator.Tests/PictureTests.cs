@@ -178,16 +178,115 @@ namespace VR.QrCodeGenerator.Tests
         }
 
         [Test]
-        public void TemplatePreview_MarksTheCodeSquare()
+        public void TemplatePreview_IsTheTemplatePixelForPixel()
         {
             var template = QrPicture.Load(Cat()).ToTemplate(PictureTemplateSource.CodeColor, SKColors.Black, SKColors.White);
-            using var preview = SKBitmap.Decode(QrPicture.TemplatePreviewPng(template, 0.4, SKColors.Black));
+            using var preview = SKBitmap.Decode(QrPicture.TemplatePreviewPng(template, null, SKColors.Black));
 
             Assert.Multiple(() =>
             {
                 Assert.That(preview.Width, Is.EqualTo(template.GetLength(1)));
-                Assert.That(preview.GetPixel(preview.Width / 2, preview.Height / 2), Is.Not.EqualTo(SKColors.Black).And.Not.EqualTo(SKColors.White), "the centre is the code's square");
+                Assert.That(preview.Height, Is.EqualTo(template.GetLength(0)));
+                Assert.That(preview.GetPixel(preview.Width / 2, preview.Height * 380 / 600), Is.EqualTo(SKColors.Black), "the cat's body");
+                Assert.That(preview.GetPixel(0, 0), Is.EqualTo(SKColors.White), "the background");
             });
+        }
+
+        [Test]
+        public void CodeSquare_IsCentredOnThePoint_AndStaysInside()
+        {
+            var (left, top, side) = MaskShape.CodeSquare(400, 200, 0.5, new ShapePoint(0.25, 0.5));
+            var (edgeLeft, edgeTop, _) = MaskShape.CodeSquare(400, 200, 0.5, new ShapePoint(1.2, -0.3));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(side, Is.EqualTo(100));
+                Assert.That(left, Is.EqualTo(50), "centred on x = 100");
+                Assert.That(top, Is.EqualTo(50), "centred on y = 100");
+                Assert.That(edgeLeft, Is.EqualTo(300), "pushed back inside on the right");
+                Assert.That(edgeTop, Is.EqualTo(0), "and at the top");
+            });
+        }
+
+        [Test]
+        public void MovedCode_MovesTheShapeAroundIt_AndStillScans()
+        {
+            // A wide black bar: with the code on the left, the bar sticks out to the right of the code, and the other way round.
+            var bar = new bool[100, 400];
+
+            for (var y = 30; y < 70; y++)
+            {
+                for (var x = 0; x < 400; x++)
+                    bar[y, x] = true;
+            }
+
+            QrCodeOptions Options() => new QrCodeOptions { PixelsPerModule = 4 };
+
+            byte[] WithCodeAt(double u) => _service.Generate(Url, Options(), new ShapeStyle(new MaskShape(bar, 0.6, inkPart: ShapePart.Textured, codeCenter: new ShapePoint(u, 0.5))));
+
+            var left = WithCodeAt(0.1);
+            var right = WithCodeAt(0.9);
+
+            // The code is taller than the bar, so the topmost dark pixel is the code's: where it is, as a share of the width.
+            static double CodePosition(byte[] png)
+            {
+                using var bitmap = SKBitmap.Decode(png);
+
+                for (var y = 0; y < bitmap.Height; y++)
+                {
+                    for (var x = 0; x < bitmap.Width; x++)
+                    {
+                        if (bitmap.GetPixel(x, y).Red < 128)
+                            return (double)x / bitmap.Width;
+                    }
+                }
+
+                return -1;
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(QrCodeGeneratorServiceTests.Decode(left), Is.EqualTo(Url));
+                Assert.That(QrCodeGeneratorServiceTests.Decode(right), Is.EqualTo(Url));
+                Assert.That(CodePosition(left), Is.LessThan(0.2), "code at the left end of the bar");
+                Assert.That(CodePosition(right), Is.GreaterThan(0.6), "code at the right end of the bar");
+            });
+        }
+
+        [Test]
+        public void ViewModel_MoveCodeTo_KeepsTheCodeInside_AndCenterResetsIt()
+        {
+            var folder = Path.Combine(Path.GetTempPath(), "VR.QrCodeGenerator.Tests", Guid.NewGuid().ToString());
+            var pictureFile = Path.Combine(folder, "cat.png");
+            Directory.CreateDirectory(folder);
+            File.WriteAllBytes(pictureFile, Cat());
+
+            try
+            {
+                var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
+                viewModel.LoadPicture(pictureFile);
+
+                viewModel.MoveCodeTo(-1000, -1000);
+                var (cornerLeft, cornerTop) = (viewModel.CodeLeft, viewModel.CodeTop);
+
+                viewModel.MoveCodeTo(viewModel.TemplateWidth * 0.3, viewModel.TemplateHeight * 0.7);
+                var moved = viewModel.CodeCenter;
+
+                viewModel.CenterCodeCommand.Execute(null);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(cornerLeft, Is.EqualTo(0), "dragged past the top-left corner: stops at the edge");
+                    Assert.That(cornerTop, Is.EqualTo(0));
+                    Assert.That(moved.U, Is.EqualTo(0.3).Within(0.01));
+                    Assert.That(moved.V, Is.EqualTo(0.7).Within(0.01));
+                    Assert.That(viewModel.CodeCenter, Is.EqualTo(new ShapePoint(0.5, 0.5)));
+                });
+            }
+            finally
+            {
+                Directory.Delete(folder, true);
+            }
         }
 
         /// <summary>
@@ -338,6 +437,147 @@ namespace VR.QrCodeGenerator.Tests
                 Assert.That(ShortestRun(normal), Is.EqualTo(6));
                 Assert.That(ShortestRun(fine), Is.EqualTo(3));
                 Assert.That(QrCodeGeneratorServiceTests.Decode(fine), Is.EqualTo(Url));
+            });
+        }
+
+        /// <summary>
+        /// A whole picture, dithered: the default style of the Picture tab.
+        /// </summary>
+        private static IQrStyle Dithered(byte[] picture, int detail = 4, double codeSize = 0.3, ShapePoint? codeCenter = null)
+        {
+            var loaded = QrPicture.Load(picture);
+            var mask = new MaskShape(loaded.ToTemplate(PictureTemplateSource.WholePicture, SKColors.Black, SKColors.White), codeSize, inkPart: ShapePart.Textured, codeClosesAreas: false, largestFilledArea: 0, codeCenter: codeCenter);
+
+            return new ShapeStyle(new PictureShape(mask, loaded.ToDarkness(), drawOutline: false), detail);
+        }
+
+        /// <summary>
+        /// Left half black, right half white.
+        /// </summary>
+        private static byte[] HalfBlack() => Png(400, 200, canvas =>
+        {
+            canvas.Clear(SKColors.White);
+            using var black = new SKPaint { Color = SKColors.Black };
+            canvas.DrawRect(0, 0, 200, 200, black);
+        });
+
+        [Test]
+        public void WholePicture_IsEveryOpaquePixel()
+        {
+            var template = QrPicture.Load(Scene()).ToTemplate(PictureTemplateSource.WholePicture, SKColors.Black, SKColors.White);
+
+            Assert.That(template.Cast<bool>().All(pixel => pixel), Is.True);
+        }
+
+        [Test]
+        public void Darkness_FollowsTheTones_AndBrightnessLightensThem()
+        {
+            var picture = QrPicture.Load(HalfBlack());
+            var normal = picture.ToDarkness();
+            var lighter = picture.ToDarkness(brightness: 0.3);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(normal[100, 50], Is.EqualTo(1).Within(0.01), "black");
+                Assert.That(normal[100, 350], Is.EqualTo(0).Within(0.01), "white");
+                Assert.That(lighter[100, 50], Is.EqualTo(0.7).Within(0.01), "black, 30 % lighter");
+            });
+        }
+
+        [Test]
+        public void Dithering_CarriesThePicturesTonesIntoTheCode()
+        {
+            // The code on the right half: around it, the left of the image must be mostly dark, the right mostly light.
+            var bytes = _service.Generate(Url, new QrCodeOptions { PixelsPerModule = 4 }, Dithered(HalfBlack(), codeSize: 0.4, codeCenter: new ShapePoint(0.75, 0.5)));
+            using var image = SKBitmap.Decode(bytes);
+
+            double DarkShare(int fromX, int toX)
+            {
+                var dark = 0;
+                var all = 0;
+
+                for (var y = image.Height / 4; y < image.Height * 3 / 4; y += 2)
+                {
+                    for (var x = fromX; x < toX; x += 2)
+                    {
+                        all++;
+                        dark += image.GetPixel(x, y).Red < 128 ? 1 : 0;
+                    }
+                }
+
+                return (double)dark / all;
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(DarkShare(image.Width / 10, image.Width * 4 / 10), Is.GreaterThan(0.9), "the black half");
+                Assert.That(QrCodeGeneratorServiceTests.Decode(bytes), Is.EqualTo(Url));
+            });
+        }
+
+        [Test]
+        public void Dithering_ShowsMidTonesAsAMixOfDots()
+        {
+            // A mid-gray picture dithers to about half dark dots, not to solid black or white.
+            var bytes = _service.Generate(Url, new QrCodeOptions { PixelsPerModule = 4 }, Dithered(Png(300, 300, canvas => canvas.Clear(new SKColor(128, 128, 128))), codeSize: 0.3, codeCenter: new ShapePoint(0.8, 0.8)));
+            using var image = SKBitmap.Decode(bytes);
+
+            var dark = 0;
+            var all = 0;
+
+            // The top-left quarter is far from the code and its gaps.
+            for (var y = image.Height / 10; y < image.Height * 4 / 10; y++)
+            {
+                for (var x = image.Width / 10; x < image.Width * 4 / 10; x++)
+                {
+                    all++;
+                    dark += image.GetPixel(x, y).Red < 128 ? 1 : 0;
+                }
+            }
+
+            Assert.That((double)dark / all, Is.EqualTo(0.5).Within(0.1));
+        }
+
+        [Test]
+        public void DitheredPicture_ScansAtEveryDetailAndPixelSize([Values(1, 2, 3, 4)] int detail)
+        {
+            var style = Dithered(Scene(), detail);
+
+            var failures = new[] { 3, 4, 6, 9, 12, 16 }
+                           .Where(pixels => QrCodeGeneratorServiceTests.Decode(_service.Generate(Url, new QrCodeOptions { PixelsPerModule = pixels }, style)) != Url)
+                           .ToList();
+
+            Assert.That(failures, Is.Empty, "pixel sizes that did not scan");
+        }
+
+        [Test]
+        public void DitheredPicture_OfHostilePictures_Scans([Values] bool black)
+        {
+            // All black around the code is the hardest case: the gaps and checks must still give a code that scans.
+            var picture = Png(300, 300, canvas => canvas.Clear(black ? SKColors.Black : SKColors.White));
+
+            Assert.That(QrCodeGeneratorServiceTests.Decode(_service.Generate(Url, new QrCodeOptions { PixelsPerModule = 6 }, Dithered(picture))), Is.EqualTo(Url));
+        }
+
+        [Test]
+        public void ViewModel_DefaultsToTheWholePictureAtUltraDetail()
+        {
+            var viewModel = new PictureCodesViewModel(new RecordingDialogService(), _service, new NullLoggingService(), new Settings());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(viewModel.SelectedSource.Source, Is.EqualTo(PictureTemplateSource.WholePicture));
+                Assert.That(viewModel.SelectedDetail.CellsPerModule, Is.EqualTo(4));
+                Assert.That(viewModel.UsesTones, Is.True);
+                Assert.That(viewModel.UsesSensitivity, Is.False);
+            });
+
+            viewModel.SelectedSource = PictureCodesViewModel.Sources.Single(source => source.Source == PictureTemplateSource.CodeColor);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(viewModel.UsesTones, Is.False);
+                Assert.That(viewModel.UsesSensitivity, Is.True);
             });
         }
 

@@ -6,7 +6,7 @@ namespace VR.QrCodeGenerator.Service.Exceptions
     public class QrCodeTooSmallException : Exception
     {
         public QrCodeTooSmallException(int minimumSize)
-            : base($"The image is too small for this content. Use a height and width of at least {minimumSize} pixels.")
+            : base($"The image is too small for this content. Use a height and width of at least {minimumSize} pixels, or turn on Exact pixel size.")
         {
             MinimumSize = minimumSize;
         }

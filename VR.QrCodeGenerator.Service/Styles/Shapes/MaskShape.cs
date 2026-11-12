@@ -47,7 +47,11 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
         /// Enclosed areas bigger than this share of the drawing stay empty: 1 fills every enclosed area (outlines);
         /// a small value fills only holes inside a shape that is already solid (a picture's subject).
         /// </param>
-        public MaskShape(bool[,] strokes, double codeFraction, int gapToClose = 6, ShapePart inkPart = ShapePart.Solid, bool codeClosesAreas = true, double largestFilledArea = 1)
+        /// <param name="codeCenter">
+        /// Where the code's centre goes, as fractions of the drawing's width and height; null is the middle. The code
+        /// is kept inside the drawing (see <see cref="CodeSquare"/>).
+        /// </param>
+        public MaskShape(bool[,] strokes, double codeFraction, int gapToClose = 6, ShapePart inkPart = ShapePart.Solid, bool codeClosesAreas = true, double largestFilledArea = 1, ShapePoint? codeCenter = null)
         {
             if (inkPart is not (ShapePart.Solid or ShapePart.Textured))
                 throw new ArgumentOutOfRangeException(nameof(inkPart), inkPart, "Ink is drawn solid or textured.");
@@ -64,9 +68,7 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
             _width = strokes.GetLength(1);
 
             CodeFraction = codeFraction;
-            _codeSide = codeFraction * Math.Min(_width, _height);
-            _codeLeft = (_width - _codeSide) / 2;
-            _codeTop = (_height - _codeSide) / 2;
+            (_codeLeft, _codeTop, _codeSide) = CodeSquare(_width, _height, codeFraction, codeCenter ?? new ShapePoint(0.5, 0.5));
 
             Margins = new ShapeMargins(
                 _codeLeft / _codeSide,
@@ -80,6 +82,20 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
 
         public double CodeFraction { get; }
 
+        /// <summary>
+        /// Where the code goes on a drawing of <paramref name="width"/> x <paramref name="height"/> pixels: a square of
+        /// <paramref name="codeFraction"/> of the shorter side, centred on <paramref name="center"/> (fractions of the
+        /// width and height) but moved as needed to stay inside the drawing.
+        /// </summary>
+        public static (double Left, double Top, double Side) CodeSquare(int width, int height, double codeFraction, ShapePoint center)
+        {
+            var side = codeFraction * Math.Min(width, height);
+            var left = Math.Clamp(center.U * width - side / 2, 0, width - side);
+            var top = Math.Clamp(center.V * height - side / 2, 0, height - side);
+
+            return (left, top, side);
+        }
+
         public ShapeMargins Margins { get; }
 
         /// <summary>
@@ -87,18 +103,25 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
         /// </summary>
         public IReadOnlyList<ShapePoint> Eyes { get; } = [];
 
+        /// <summary>
+        /// The pixels of the drawing under the cell centred at (u, v) when the code is <paramref name="size"/> cells
+        /// wide: [x0, x1) x [y0, y1), clipped to the drawing (empty outside it).
+        /// </summary>
+        public (int X0, int Y0, int X1, int Y1) PixelRect(double u, double v, int size)
+        {
+            var cellSide = _codeSide / size;
+            var left = _codeLeft + u * _codeSide - cellSide / 2;
+            var top = _codeTop + v * _codeSide - cellSide / 2;
+
+            return (Math.Clamp((int)Math.Floor(left), 0, _width),
+                    Math.Clamp((int)Math.Floor(top), 0, _height),
+                    Math.Clamp((int)Math.Ceiling(left + cellSide), 0, _width),
+                    Math.Clamp((int)Math.Ceiling(top + cellSide), 0, _height));
+        }
+
         public ShapePart Classify(double u, double v, int size)
         {
-            // The module's square in drawing pixels.
-            var moduleSide = _codeSide / size;
-            var left = _codeLeft + u * _codeSide - moduleSide / 2;
-            var top = _codeTop + v * _codeSide - moduleSide / 2;
-
-            var x0 = Math.Clamp((int)Math.Floor(left), 0, _width);
-            var y0 = Math.Clamp((int)Math.Floor(top), 0, _height);
-            var x1 = Math.Clamp((int)Math.Ceiling(left + moduleSide), 0, _width);
-            var y1 = Math.Clamp((int)Math.Ceiling(top + moduleSide), 0, _height);
-
+            var (x0, y0, x1, y1) = PixelRect(u, v, size);
             var area = (x1 - x0) * (y1 - y0);
 
             if (area <= 0)
@@ -235,30 +258,37 @@ namespace VR.QrCodeGenerator.Service.Styles.Shapes
             int height = mask.GetLength(0), width = mask.GetLength(1);
             var horizontal = new bool[height, width];
             var result = new bool[height, width];
+            var counts = new int[Math.Max(width, height) + 1];
 
+            // Running counts of set pixels along each row, then each column: the window's count in constant time, so the
+            // cost does not grow with the radius.
             for (var y = 0; y < height; y++)
             {
                 for (var x = 0; x < width; x++)
-                    horizontal[y, x] = Window(x, width, i => mask[y, i]);
+                    counts[x + 1] = counts[x] + (mask[y, x] ? 1 : 0);
+
+                for (var x = 0; x < width; x++)
+                    horizontal[y, x] = Window(x, width);
             }
 
-            for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
             {
-                for (var x = 0; x < width; x++)
-                    result[y, x] = Window(y, height, i => horizontal[i, x]);
+                for (var y = 0; y < height; y++)
+                    counts[y + 1] = counts[y] + (horizontal[y, x] ? 1 : 0);
+
+                for (var y = 0; y < height; y++)
+                    result[y, x] = Window(y, height);
             }
 
             return result;
 
-            bool Window(int centre, int length, Func<int, bool> value)
+            bool Window(int centre, int length)
             {
-                for (var i = Math.Max(0, centre - radius); i <= Math.Min(length - 1, centre + radius); i++)
-                {
-                    if (value(i) == any)
-                        return any;
-                }
+                var from = Math.Max(0, centre - radius);
+                var to = Math.Min(length - 1, centre + radius);
+                var set = counts[to + 1] - counts[from];
 
-                return !any;
+                return any ? set > 0 : set == to - from + 1;
             }
         }
 

@@ -54,6 +54,8 @@ Output details:
 | 3. Quiet zone | `QrDrawing.WithMargin` | 4 light modules around, when `DrawQuietZones` |
 | 4. Render | `Rendering/IQrImageRenderer` | One renderer per `EnumImageFormat`, drawing cells. With an exact pixel size, a cell gets `round(pixels / cells per module)` pixels |
 
+`QrCodeGeneratorService` keeps the last drawing (steps 1 and 2) for the same content, error correction and style object. Generate draws the preview and Save draws the chosen format separately, and a decorated drawing can take a second. Colors, size and format do not change the drawing.
+
 `Generate(content, options, format)` takes the built-in style from `options.Style` via `QrStyles`. `Generate(content, options, IQrStyle style, format)` takes a style object made at runtime.
 
 ### Custom codes and shape styles
@@ -65,7 +67,7 @@ All three animals are a `ShapeStyle` with an `IShape` (`Styles/Shapes`). A shape
 - The QR code's own modules are never changed, so no error correction is spent.
 - **Finder gap:** a 2-module light gap is kept beside the three finder patterns, where scanners look for them.
 - **No fake finders:** the texture never forms a solid 3 x 3 dark block (the centre of a finder pattern). Random look-alikes once made a scanner lock onto the wrong spot.
-- **Checked before use:** `QrScanVerifier` decodes every result with ZXing (TryHarder off) at 3, 5, 8 and 12 px per module, because decoding depends on the pixel size. On failure the builder tries other textures, then a 3-module gap, then a full 4-module quiet zone. If nothing scans, the plain code is returned, so a drawing that does not scan is never returned. In a sweep of 120 contents x 3 animals x 5 pixel sizes (2 to 12 px), every image decoded, none fell back to the plain code, and generating took about 14 ms.
+- **Checked before use:** `QrScanVerifier` decodes every result with ZXing at 3, 5, 8, 12 and 16 px per module, with TryHarder both off and on, because decoding depends on the pixel size and on how hard the scanner searches. A thorough search once locked onto a finder-like spot in a dithered picture that the quick one ignored. On failure the builder tries other textures, then a 3-module gap, then a full 4-module quiet zone. If nothing scans, the plain code is returned, so a drawing that does not scan is never returned. In a sweep of 120 contents x 3 animals x 5 pixel sizes (2 to 12 px), every image decoded, none fell back to the plain code, and generating took about 14 ms.
 - **Stable texture:** it is seeded from a stable hash of the content, so the preview and the saved file are identical.
 - **Small codes:** shapes are in fractions of the code's size, so short content (21 to 25 modules) gives a blockier animal with less readable faces than long content.
 
@@ -97,33 +99,50 @@ Tests: `DrawingTests` (filling, solid lines, gap closing, a head on the code, sc
 
 ### Picture tab
 
-The **Picture** tab uses a picture as the template, the same way the Drawing tab uses a drawing. The picture's subject becomes the shape around the code, filled with the QR-like texture like the Kurkod body, and the code sits in the centre.
+The **Picture** tab draws a picture around the code. By default the whole picture is **dithered**: every cell is black or white by the picture's darkness there, with Floyd–Steinberg error diffusion, so faces, edges and shading survive in black and white. The code starts in the centre and can be dragged anywhere on the picture.
 
-- **Page:** a picture card shows the template, not the photo: black is what will become the shape, and the code's square is blue. It has **Choose picture**, **Remove**, and drag and drop. Generate without a picture warns and does nothing (`MainViewModel.GenerateBlockedReason`). The other controls:
-  - **Shape from:** **Subject (automatic)**, the default, or **QR code color**.
-  - **Sensitivity** (20–80 %, default 50 %): how much of the picture counts.
-  - **Code size** (20–60 % of the shorter side, default 40 %): a smaller code leaves more picture for the shape, so more detail.
-  - **Detail:** Normal, **Fine** (the default), or Extra fine.
+Why dithering: an earlier version reduced the picture to a yes/no silhouette and filled it with random QR texture. Everything inside the outline was lost, and photos, which have no clear silhouette, became rectangles of noise.
+
+- **Page:** a picture card shows the template: the picture's tones (or, in QR code color mode, its ink) where it will be drawn, with the code's square in blue. It has **Choose picture**, **Center**, **Remove**, and drag and drop of a file. Generate without a picture warns and does nothing (`MainViewModel.GenerateBlockedReason`).
+- **Defaults on this page:** exact pixel size at 8 px per module (2 px per dot at Ultra), so the image is always big enough for its hundreds of dots and every dot is whole pixels. A fixed width and height of 500 px was too small for a detailed picture and scaled the dots unevenly.
+- **Placing the code:**
+  - Drag the blue square, or click anywhere on the template to move the code's centre there.
+  - The template image and the square share one `Viewbox` at template pixel size, so mouse positions on its `Canvas` are template pixels, whatever the zoom.
+  - `PictureCodesViewModel.MoveCodeTo` stores the position as `CodeCenter` (fractions of width and height). `MaskShape.CodeSquare`, used by both the overlay and the shape, keeps the whole code inside the picture, so dragging past an edge stops there.
+  - A new picture, or **Center**, puts the code back in the middle.
+- **Other controls:**
+  - **Shape from:** **Whole picture** (the default, dithered), **Subject (automatic)** (dithered, with an outline), or **QR code color** (Kurkod-like random texture, for line art).
+  - **Brightness** (−50 to +50 %) and **Contrast** (50–200 %): applied to the tones before dithering. Whole picture and Subject only.
+  - **Sensitivity** (20–80 %, default 50 %): how much of the picture counts. Subject and QR code color only.
+  - **Code size** (20–60 % of the shorter side, default 30 %): a smaller code leaves more picture around it.
+  - **Detail:** Normal, Fine, Extra fine or **Ultra** (the default): 1, 2, 3 or 4 cells per module side.
 - **`QrPicture`:**
   - Loads PNG, JPG, BMP, GIF (first frame), WEBP or ICO through SkiaSharp. Unreadable data gives `InvalidDataException`.
-  - Scales the picture once to 720 px on the long side, so template changes stay quick.
+  - Scales the picture once to 1200 px on the long side, about as many as the finest cells need, so template changes stay quick.
+  - `ToDarkness(brightness, contrast)`: 0 (white) to 1 (black) per pixel from its luminance; transparency shows the white paper.
+  - **Whole picture:** every opaque pixel.
   - **Subject:** the background is read from the picture's edge. If most edge pixels are transparent, the subject is whatever is opaque. Otherwise the background is the median edge color, and the subject is every pixel more than 90 (lowest sensitivity) to 10 (highest) away from it in RGB. This catches light figures on white, which the QR code color mode misses.
   - **QR code color:** a pixel counts when it is within `sensitivity x distance(code color, background color)` of the code color. With red as the code color, only reddish pixels count, not black ones.
-  - **Both modes:** transparent pixels never count, and pieces smaller than 0.2 % of the picture (stray lines, signatures, dust) are dropped.
-  - `PictureCodesViewModel` rebuilds the template when the picture, mode, sensitivity, code size or either color changes.
-- **Shape:** a `MaskShape` with `inkPart: Textured`.
-  - **Subject:** `codeClosesAreas: false` and `largestFilledArea: 0.02`. The subject is already solid, so only small holes in it are filled, such as white fur inside an outline, and not background it surrounds, such as the space under an arch.
-  - **QR code color:** fills every enclosed area like a drawing does, so an outline heart fills.
-  - The gap closing is scaled to the template size (12 px at 720).
-- **Detail:** `ShapeStyle(shape, cellsPerModule)` makes `ShapedCodeBuilder` draw the shape in 2 x 2 or 3 x 3 cells per module.
-  - Edges are smoother and the texture finer, while the code's modules cover whole blocks of cells and stay unchanged.
+  - **Subject and QR code color:** transparent pixels never count, and pieces smaller than 0.2 % of the picture (stray lines, signatures, dust) are dropped.
+  - `PictureCodesViewModel` rebuilds the template and tones when the picture, mode, sensitivity, brightness, contrast or either color changes.
+- **Shape:**
+  - **Whole picture:** `PictureShape(MaskShape(opaque pixels, largestFilledArea: 0), darkness, drawOutline: false)`.
+  - **Subject:** `PictureShape(MaskShape(subject, codeClosesAreas: false, largestFilledArea: 0.02), darkness, drawOutline: true)`. The subject is already solid, so only small holes in it are filled, such as white fur inside an outline, and not background it surrounds, such as the space under an arch.
+  - **QR code color:** a plain `MaskShape` with `inkPart: Textured`. It fills every enclosed area like a drawing does, so an outline heart fills.
+  - The gap closing is scaled to the template size (20 px at 1200). Dilation and erosion use running counts, so their cost does not grow with the radius.
+- **Dithering (`IToneShape`):** a shape that implements it gives the darkness of any cell (`PictureShape`: an average from a summed-area table). `ShapedCodeBuilder` then fills its textured cells by error diffusion instead of random texture.
+  - The threshold jitters by ±0.1 with the seed, so a retry is a different drawing.
+  - Dithered cells skip the "no 3 x 3 dark block" rule, which would sprinkle dots over every dark area. The scan check covers them instead.
+- **Detail:** `ShapeStyle(shape, cellsPerModule)` makes `ShapedCodeBuilder` draw the shape in 2 x 2, 3 x 3 or 4 x 4 cells per module.
+  - The code's modules cover whole blocks of cells and stay unchanged.
   - Finder gaps and the quiet zone stay the same in modules, and `QrScanVerifier` checks every result at the same module sizes.
-  - With an exact pixel size, a module is the nearest multiple of the cells (6 px per module at Fine is 3 px cells).
-- **Results:** picture codes keep the picture's proportions, so a tall cat gives a tall code. A picture with no subject gives the plain code. Picture codes use the same builder as drawings and animals, so the same finder gaps, texture rules and scan check apply. A 2000 x 1300 code from a 720 px template takes about 0.2–0.3 s.
+  - With an exact pixel size, a cell is `round(pixels / cells per module)` pixels: 8 px per module at Ultra is 2 px cells.
+- **Results:** picture codes keep the picture's proportions, so a tall cat gives a tall code. A picture with no subject gives the plain code.
+- **Timing:** a dithered 2:1 wallpaper at Ultra and 30 % code size took 0.4–1.5 s, and up to 3.7 s for a 170-character link that needed retries. Generate and Save share one drawing through the generator's cache.
 
 The local branch `picture-blend-experiment` (not pushed) keeps an earlier, unused take on this tab: the picture blended into the code in color ("artistic QR code").
 
-Tests: `PictureTests` (silhouette, outline, photo-like and all-black pictures at every pixel size; subject mode on a light figure and a cut-out; ink color; sensitivity; transparency; dropped specks; background under an arch vs small holes; every detail level at every pixel size; finer cells; a picture without ink; the template preview; bad files; and the view model).
+Tests: `PictureTests` (dithering: whole picture, darkness and brightness, tones carried into the code, mid-tones as a mix of dots, every detail level at every pixel size, all-black and all-white pictures; silhouette, outline, photo-like and all-black pictures at every pixel size; subject mode on a light figure and a cut-out; ink color; sensitivity; transparency; dropped specks; background under an arch vs small holes; every detail level at every pixel size; finer cells; a picture without ink; the template preview; bad files; code placement, clamping and Center; a moved code that still scans; and the view model).
 
 Save and Copy use what the preview shows, so settings changed since Generate do not affect them until the next Generate. Save does use the currently selected format. Copy always uses the in-memory PNG, whatever format was saved.
 
